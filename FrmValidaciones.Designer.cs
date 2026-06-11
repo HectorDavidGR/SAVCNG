@@ -47,6 +47,7 @@
             this.chkNS = new System.Windows.Forms.CheckBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.chkFormatoTexto = new System.Windows.Forms.CheckBox();
+            this.chkBloqueo = new System.Windows.Forms.CheckBox();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.panel2.SuspendLayout();
@@ -198,6 +199,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.chkBloqueo);
             this.tabPage1.Controls.Add(this.label5);
             this.tabPage1.Controls.Add(this.chkNS);
             this.tabPage1.Controls.Add(this.lblPregunta);
@@ -254,6 +256,16 @@
             this.chkFormatoTexto.Text = "Formato Texto";
             this.chkFormatoTexto.UseVisualStyleBackColor = true;
             // 
+            // chkBloqueo
+            // 
+            this.chkBloqueo.AutoSize = true;
+            this.chkBloqueo.Location = new System.Drawing.Point(45, 219);
+            this.chkBloqueo.Name = "chkBloqueo";
+            this.chkBloqueo.Size = new System.Drawing.Size(520, 66);
+            this.chkBloqueo.TabIndex = 8;
+            this.chkBloqueo.Text = "Validación: Bloqueo";
+            this.chkBloqueo.UseVisualStyleBackColor = true;
+            // 
             // FrmValidaciones
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
@@ -299,5 +311,6 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.CheckBox chkFormatoTexto;
+        private System.Windows.Forms.CheckBox chkBloqueo;
     }
 }

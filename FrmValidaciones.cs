@@ -84,6 +84,8 @@ namespace SAVCNG_ExcelDNA
             Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
             string separador = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
 
+            
+
             try
             {
                 // 1. Primero verificamos que el usuario no haya olvidado capturar un rango
@@ -423,6 +425,186 @@ namespace SAVCNG_ExcelDNA
                         chkFormatoTexto.Checked = false;
                     }
                 }
+                else if (chkBloqueo.Checked == true)
+                {
+                    try
+                    {
+                        // --- PASO 1: LA CELDA O RANGO ---
+                        object resultadoRango = excelApp.InputBox(
+                            "Selecciona el RANGO o CELDA que controla el bloqueo:\n\n" +
+                            "• Una celda: Se evaluará fila por fila.\n" +
+                            "• Un rango: Se desbloqueará si el valor existe en CUALQUIER celda del rango seleccionado.",
+                            "1. Condición de Bloqueo",
+                            Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+
+                        if (resultadoRango is bool && (bool)resultadoRango == false)
+                        {
+                            chkBloqueo.Checked = false;
+                            return;
+                        }
+
+                        Excel.Range rangoCondicion = (Excel.Range)resultadoRango;
+
+                        // INTELIGENCIA SENIOR: ¿Es búsqueda global (varias celdas) o fila por fila (una celda)?
+                        bool esRangoGlobal = rangoCondicion.Count > 1;
+
+                        // Si es global fijamos todo ($A$1:$A$10). Si es fila por fila, fijamos solo columna ($A1)
+                        string dirCondicion = esRangoGlobal
+                            ? rangoCondicion.Address
+                            : rangoCondicion.Cells[1, 1].Address.Replace("$", "");
+
+                        // --- PASO 2: EL OPERADOR LÓGICO ---
+                        object resultadoOperador = excelApp.InputBox(
+                            "Introduce el operador lógico que PERMITE la captura:\n\n" +
+                            "  =    (Igual a)\n" +
+                            "  <>   (No es igual a)\n" +
+                            "  >    (Es mayor que)\n" +
+                            "  <    (Es menor que)\n" +
+                            "  >=   (Es mayor o igual a)\n" +
+                            "  <=   (Es menor o igual a)",
+                            "2. Operador Lógico",
+                            "=", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
+
+                        if (resultadoOperador is bool && (bool)resultadoOperador == false)
+                        {
+                            chkBloqueo.Checked = false;
+                            return;
+                        }
+
+                        string operador = resultadoOperador.ToString().Trim();
+
+                        // Verificación de seguridad del operador
+                        if (operador != "=" && operador != "<>" && operador != ">" && operador != "<" && operador != ">=" && operador != "<=")
+                        {
+                            MessageBox.Show("Operador no reconocido.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            chkBloqueo.Checked = false;
+                            return;
+                        }
+
+                        // --- PASO 3: EL VALOR ---
+                        object resultadoValor = excelApp.InputBox(
+                            $"Introduce el valor que completará la condición.\n(Condición actual: {operador} ___ )\n\nEjemplos: 6, Sí, 99:",
+                            "3. Valor del Criterio",
+                            Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
+
+                        if (resultadoValor is bool && (bool)resultadoValor == false)
+                        {
+                            chkBloqueo.Checked = false;
+                            return;
+                        }
+
+                        string valorCriterio = resultadoValor.ToString().Trim();
+                        bool esNumero = double.TryParse(valorCriterio, out _);
+                        string valorFormateado = esNumero ? valorCriterio : $"\"{valorCriterio}\"";
+
+                        // --- PASO 4: LA ALERTA ROJA ---
+                        DialogResult respuestaRojo = MessageBox.Show(
+                            "¿Deseas que la celda se resalte en ROJO cuando se desbloquee y esté vacía?\n\n(Ideal para los campos 'Especifique' que se vuelven obligatorios).",
+                            "4. Resalte de Obligatoriedad",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
+                        // --- APLICACIÓN DE REGLAS (MOTOR: CONTAR.SI) ---
+
+                        _rangoCapturado.Validation.Delete();
+                        _rangoCapturado.FormatConditions.Delete();
+
+                        // Para CONTAR.SI, el criterio debe ser un texto concatenado, ej: "=" & 6  o  "<>" & "Sí"
+                        string criterioContarSi = $"\"{operador}\"&{valorFormateado}";
+
+                        // 1. DATA VALIDATION (Restricción de escritura - SÍ permite si cuenta más de 0)
+                        string formulaValidacion = $"=CONTAR.SI({dirCondicion}{separador}{criterioContarSi})>0";
+
+                        _rangoCapturado.Validation.Add(
+                            Excel.XlDVType.xlValidateCustom,
+                            Excel.XlDVAlertStyle.xlValidAlertStop,
+                            Excel.XlFormatConditionOperator.xlBetween,
+                            formulaValidacion,
+                            Type.Missing);
+
+                        _rangoCapturado.Validation.IgnoreBlank = true;
+                        _rangoCapturado.Validation.ShowError = true;
+                        _rangoCapturado.Validation.ErrorTitle = "Celda Bloqueada";
+                        _rangoCapturado.Validation.ErrorMessage = $"No se permite capturar información. El flujo requiere encontrar una celda que sea {operador} {valorCriterio} en el rango de referencia.";
+
+                        // 2. FORMATO CONDICIONAL 1 (Sombreado Gris - Bloqueado si cuenta 0 coincidencias)
+                        string formulaSombreado = $"=CONTAR.SI({dirCondicion}{separador}{criterioContarSi})=0";
+
+                        Excel.FormatCondition formatoGris = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
+                            Excel.XlFormatConditionType.xlExpression,
+                            Type.Missing,
+                            formulaSombreado);
+
+                        formatoGris.Interior.Pattern = Excel.XlPattern.xlPatternCrissCross;
+                        formatoGris.Interior.PatternColor = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Gray);
+
+                        // 3. FORMATO CONDICIONAL 2 (Resalte Rojo - Desbloqueado y Vacío)
+                        if (respuestaRojo == DialogResult.Yes)
+                        {
+                            // Obtenemos la dirección de la celda donde estamos parados (Ej: C2) sin anclar para que la regla baje correctamente
+                            string dirCapturada = _rangoCapturado.Cells[1, 1].Address.Replace("$", "");
+
+                            // Fórmula: =Y( CONTAR.SI(...)>0, ESBLANCO(C2) )
+                            string formulaRojo = $"=Y(CONTAR.SI({dirCondicion}{separador}{criterioContarSi})>0{separador}ESBLANCO({dirCapturada}))";
+
+                            Excel.FormatCondition formatoRojo = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
+                                Excel.XlFormatConditionType.xlExpression,
+                                Type.Missing,
+                                formulaRojo);
+
+                            formatoRojo.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
+                            formatoRojo.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
+                        }
+
+                        // ==========================================================
+                        // --- PASO 5: RESALTE DE INSTRUCCIÓN ---
+                        // ==========================================================
+                        DialogResult respuestaInstruccion = MessageBox.Show(
+                            "¿Deseas resaltar en AMARILLO alguna instrucción asociada a este bloqueo?\n\n(Esto guía visualmente al capturista para entender la alerta).",
+                            "5. Resalte de Instrucción",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
+                        if (respuestaInstruccion == DialogResult.Yes)
+                        {
+                            object resultadoInstruccion = excelApp.InputBox(
+                                "Selecciona la celda o rango que contiene la instrucción:",
+                                "Seleccionar Instrucción",
+                                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+
+                            // Verificamos que el usuario no haya presionado "Cancelar"
+                            if (!(resultadoInstruccion is bool && (bool)resultadoInstruccion == false))
+                            {
+                                Excel.Range rangoInstruccion = (Excel.Range)resultadoInstruccion;
+
+                                // 1. Limpiamos formatos anteriores en esa instrucción
+                                rangoInstruccion.FormatConditions.Delete();
+
+                                // 2. Usamos exactamente la MISMA fórmula que usamos para desbloquear
+                                string formulaInstruccion = $"=CONTAR.SI({dirCondicion}{separador}{criterioContarSi})>0";
+
+                                // 3. Le aplicamos el formato condicional a la instrucción
+                                Excel.FormatCondition formatoInstruccion = (Excel.FormatCondition)rangoInstruccion.FormatConditions.Add(
+                                    Excel.XlFormatConditionType.xlExpression,
+                                    Type.Missing,
+                                    formulaInstruccion);
+
+                                // 4. Configuramos el color amarillo y las negritas (solo se activará cuando se cumpla la fórmula)
+                                formatoInstruccion.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
+                                formatoInstruccion.Font.Bold = true;
+                            }
+                        }
+
+                        chkBloqueo.Checked = false;
+                        MessageBox.Show($"Validación de Bloqueo Dinámica aplicada con éxito.\nMotor de búsqueda activado para: {operador} {valorCriterio}", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error al aplicar la Validación de Bloqueo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkBloqueo.Checked = false;
+                    }
+                }
+
                 else
                 {
                     MessageBox.Show("No has marcado ninguna validación para aplicar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -489,5 +671,7 @@ namespace SAVCNG_ExcelDNA
                 }
             }
         }
+
+
     }
 }
