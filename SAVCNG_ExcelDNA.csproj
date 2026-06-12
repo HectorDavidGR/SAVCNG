@@ -76,9 +76,12 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="documentacion\CHANGELOG_v2.2.1.md" />
     <None Include="documentacion\documentacion_savcng.md" />
+    <None Include="documentacion\documentacion_savcng_2.2.1.md" />
     <None Include="documentacion\documentacion_savcng_2025-01-09.md" />
     <None Include="documentacion\documentacion_savcng_2026-05-19.md" />
+    <None Include="documentacion\documentacion_savcng_2026-06-11.md" />
     <None Include="SAVCNG_ExcelDNA-AddIn.dna" />
     <None Include="packages.config" />
     <None Include="Properties\ExcelDna.Build.props" />
