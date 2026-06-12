@@ -82,6 +82,11 @@
     <None Include="documentacion\documentacion_savcng_2025-01-09.md" />
     <None Include="documentacion\documentacion_savcng_2026-05-19.md" />
     <None Include="documentacion\documentacion_savcng_2026-06-11.md" />
+    <None Include="documentacion\documentacion_savcng_2026-06-12.md" />
+    <None Include="documentacion\MANIFEST_DOCUMENTACION_2026-06-12.md" />
+    <None Include="documentacion\NOTAS_ACTUALIZACION_2026-06-12.md" />
+    <None Include="documentacion\README_DOCUMENTACION.md" />
+    <None Include="documentacion\RESUMEN_ACTUALIZACION_2026-06-12.md" />
     <None Include="SAVCNG_ExcelDNA-AddIn.dna" />
     <None Include="packages.config" />
     <None Include="Properties\ExcelDna.Build.props" />

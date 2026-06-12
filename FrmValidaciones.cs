@@ -61,6 +61,7 @@ namespace SAVCNG_ExcelDNA
                     // Detectamos la pregunta automáticamente al capturar
                     string pregunta = ObtenerNumeroPregunta(_rangoCapturado);
                     lblPregunta.Text = "Pregunta detectada: " + pregunta;
+                    lblRangoSeleccionado.Text = "Rango seleccionado: " + _rangoCapturado.Address.Replace("$", "");
 
                     MessageBox.Show("Se capturó correctamente el rango: " + _rangoCapturado.Address,
                                     "Captura exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -130,147 +131,168 @@ namespace SAVCNG_ExcelDNA
                 }
                 else if (chkCatalogos.Checked == true)
                 {
-                  
-
-                    // 1. Mostrar el InputBox para seleccionar el origen
-                    object resultadoInput = excelApp.InputBox(
-                        "Selecciona el rango de opciones o la celda que contiene la lista (ej: 1,2,9):",
-                        "Seleccionar Origen del Catálogo",
-                        Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
-
-                    if (resultadoInput is bool && (bool)resultadoInput == false) return;
-
-                    Excel.Range rangoOrigen = (Excel.Range)resultadoInput;
                     string formulaOpciones = "";
 
-                    
+                    // PREGUNTA NUEVA: ¿Manual o desde Excel?
+                    DialogResult tipoEntrada = MessageBox.Show(
+                        "¿Deseas escribir el valor de la lista manualmente (ej: un solo valor como 'X' o varios como '1,2,3')?\n\n" +
+                        "SÍ: Escribir el valor directamente.\n" +
+                        "NO: Seleccionar celdas de Excel.",
+                        "Origen del Catálogo",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
 
-                    // 2. LÓGICA DE ELECCIÓN: Detectamos celda única o combinada
-                    bool esCeldaUnicaOCombinada = (rangoOrigen.Count == 1) || (bool)rangoOrigen.MergeCells;
-
-                    if (esCeldaUnicaOCombinada)
+                    if (tipoEntrada == DialogResult.Yes)
                     {
-                        DialogResult respuesta = MessageBox.Show(
-                            "Has seleccionado una celda (o bloque combinado). ¿Deseas usar su CONTENIDO como lista de opciones (ej: 1,2,9)?\n\n" +
-                            "SÍ: Extrae el texto dentro de la celda.\n" +
-                            "NO: Usa la celda como una referencia de rango normal.",
-                            "Configuración de Catálogo",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question);
+                        // ==========================================================
+                        // CASO 1: ENTRADA MANUAL (Ideal para "X")
+                        // ==========================================================
+                        object resultadoTexto = excelApp.InputBox(
+                            "Escribe las opciones para tu lista desplegable.\n(Si son varias, sepáralas por comas):",
+                            "Escribir Opciones",
+                            Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Solo Texto
 
-                        if (respuesta == DialogResult.Yes)
+                        if (resultadoTexto is bool && (bool)resultadoTexto == false)
                         {
-                            Excel.Range primeraCeldaOrigen = (Excel.Range)rangoOrigen.Cells[1, 1];
-                            string textoCelda = primeraCeldaOrigen.Text?.ToString() ?? "";
-
-                            if (string.IsNullOrWhiteSpace(textoCelda))
-                            {
-                                MessageBox.Show("La celda origen está vacía. No se puede crear la lista.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                chkCatalogos.Checked = false;
-                                return;
-                            }
-
-                            // 1. PRIMERA LIMPIEZA: Separamos por punto, coma o saltos de línea
-                            string[] pedacitos = textoCelda.Split(new char[] { '.', ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-
-                            System.Collections.Generic.List<string> listaNumerosLimpios = new System.Collections.Generic.List<string>();
-
-                            // 2. SEGUNDA LIMPIEZA: Extraemos solo números
-                            foreach (string pedazo in pedacitos)
-                            {
-                                string soloNumeros = "";
-                                foreach (char letra in pedazo)
-                                {
-                                    if (char.IsDigit(letra))
-                                    {
-                                        soloNumeros += letra;
-                                    }
-                                }
-
-                                if (!string.IsNullOrEmpty(soloNumeros))
-                                {
-                                    listaNumerosLimpios.Add(soloNumeros);
-                                }
-                            }
-
-                            // 3. Obtenemos el separador oficial de tu Excel (coma o punto y coma)
-                            string separadorSistema = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
-
-                            // 4. UNIÓN FINAL: Usamos el separador normal, no el \0
-                            formulaOpciones = string.Join(separadorSistema, listaNumerosLimpios);
-
-                            // --- IMPRIMIR EN CONSOLA PARA REVISIÓN ---
-                            System.Diagnostics.Debug.WriteLine("=========================================");
-                            System.Diagnostics.Debug.WriteLine($"[DEBUG CATÁLOGOS] Texto original de la celda: '{textoCelda}'");
-                            System.Diagnostics.Debug.WriteLine($"[DEBUG CATÁLOGOS] Opciones limpias a insertar : '{formulaOpciones}'");
-                            System.Diagnostics.Debug.WriteLine("=========================================");
+                            chkCatalogos.Checked = false;
+                            return;
                         }
-                        else
+
+                        string textoEscrito = resultadoTexto.ToString().Trim();
+                        if (string.IsNullOrEmpty(textoEscrito))
                         {
-                            formulaOpciones = "=" + rangoOrigen.get_Address(true, true, Excel.XlReferenceStyle.xlA1, true);
+                            chkCatalogos.Checked = false;
+                            return;
                         }
+
+                        // Reemplaza comas por el separador correcto de la PC
+                        formulaOpciones = textoEscrito.Replace(",", separador);
                     }
                     else
                     {
-                        // CASO DE RANGO NORMAL (Varias celdas seleccionadas)
-                        DialogResult respuestaRango = MessageBox.Show(
-                            "Has seleccionado varias celdas. ¿Deseas LIMPIARLAS y usar solo sus NÚMEROS como opciones (ej: 1, 2, 3)?\n\n" +
-                            "SÍ: Extrae solo los números ignorando el texto.\n" +
-                            "NO: Usa el rango normal con todo su contenido original.",
-                            "Configuración de Catálogo",
-                            MessageBoxButtons.YesNo,
-                            MessageBoxIcon.Question);
+                        // ==========================================================
+                        // CASO 2: TU CÓDIGO ORIGINAL (Selección de Celdas)
+                        // ==========================================================
+                        object resultadoInput = excelApp.InputBox(
+                            "Selecciona el rango de opciones o la celda que contiene la lista (ej: 1,2,9):",
+                            "Seleccionar Origen del Catálogo",
+                            Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Solo Rango
 
-                        if (respuestaRango == DialogResult.Yes)
+                        if (resultadoInput is bool && (bool)resultadoInput == false)
                         {
-                            System.Collections.Generic.List<string> listaNumerosLimpios = new System.Collections.Generic.List<string>();
+                            chkCatalogos.Checked = false;
+                            return;
+                        }
 
-                            // Recorremos cada celda dentro del rango que seleccionaste
-                            foreach (Excel.Range celda in rangoOrigen.Cells)
+                        Excel.Range rangoOrigen = (Excel.Range)resultadoInput;
+
+                        bool esCeldaUnicaOCombinada = (rangoOrigen.Count == 1) || (bool)rangoOrigen.MergeCells;
+
+                        if (esCeldaUnicaOCombinada)
+                        {
+                            // AQUI CAMBIAMOS A YesNoCancel para dar 3 opciones
+                            DialogResult respuesta = MessageBox.Show(
+                                "Has seleccionado una celda (o bloque combinado). ¿Cómo deseas extraer sus opciones?\n\n" +
+                                "SÍ: Extraer SOLO NÚMEROS (Limpia texto y deja ej: 1,2,9).\n" +
+                                "NO: Mantener el TEXTO EXACTO (Ideal para 'X' o palabras).\n" +
+                                "CANCELAR: Usar como referencia de rango normal (=$A$1).",
+                                "Configuración de Catálogo",
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Question);
+
+                            if (respuesta == DialogResult.Cancel)
                             {
-                                string textoCelda = celda.Text?.ToString() ?? "";
-                                string soloNumeros = "";
+                                formulaOpciones = "=" + rangoOrigen.get_Address(true, true, Excel.XlReferenceStyle.xlA1, true);
+                            }
+                            else
+                            {
+                                Excel.Range primeraCeldaOrigen = (Excel.Range)rangoOrigen.Cells[1, 1];
+                                string textoCelda = primeraCeldaOrigen.Text?.ToString() ?? "";
 
-                                // Extraemos solo los dígitos de esta celda específica
-                                foreach (char letra in textoCelda)
+                                if (string.IsNullOrWhiteSpace(textoCelda))
                                 {
-                                    if (char.IsDigit(letra))
+                                    MessageBox.Show("La celda origen está vacía. No se puede crear la lista.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    chkCatalogos.Checked = false;
+                                    return;
+                                }
+
+                                string[] pedacitos = textoCelda.Split(new char[] { '.', ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                                System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
+
+                                if (respuesta == DialogResult.Yes)
+                                {
+                                    // SÍ: SOLO NÚMEROS (Tu lógica original)
+                                    foreach (string pedazo in pedacitos)
                                     {
-                                        soloNumeros += letra;
+                                        string soloNumeros = "";
+                                        foreach (char letra in pedazo) { if (char.IsDigit(letra)) soloNumeros += letra; }
+                                        if (!string.IsNullOrEmpty(soloNumeros)) listaLimpios.Add(soloNumeros);
+                                    }
+                                }
+                                else if (respuesta == DialogResult.No)
+                                {
+                                    // NO: TEXTO EXACTO
+                                    foreach (string pedazo in pedacitos)
+                                    {
+                                        string textoLimpio = pedazo.Trim();
+                                        if (!string.IsNullOrEmpty(textoLimpio)) listaLimpios.Add(textoLimpio);
                                     }
                                 }
 
-                                // Si encontramos un número, lo guardamos a la lista general
-                                if (!string.IsNullOrEmpty(soloNumeros))
-                                {
-                                    listaNumerosLimpios.Add(soloNumeros);
-                                }
+                                string separadorSistema = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
+                                formulaOpciones = string.Join(separadorSistema, listaLimpios);
                             }
-
-                            // Verificamos que sí hayamos encontrado números
-                            if (listaNumerosLimpios.Count == 0)
-                            {
-                                MessageBox.Show("No se encontraron números en el rango seleccionado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                chkCatalogos.Checked = false;
-                                return;
-                            }
-
-                            // Unimos la lista usando el separador que ya definimos arriba en tu botón
-                            formulaOpciones = string.Join(separador, listaNumerosLimpios);
-
-                            // --- IMPRIMIR EN CONSOLA ---
-                            System.Diagnostics.Debug.WriteLine("=========================================");
-                            System.Diagnostics.Debug.WriteLine($"[DEBUG CATÁLOGOS RANGO] Opciones limpias: '{formulaOpciones}'");
-                            System.Diagnostics.Debug.WriteLine("=========================================");
                         }
                         else
                         {
-                            // Comportamiento normal de Excel si el usuario elige "NO"
-                            formulaOpciones = "=" + rangoOrigen.get_Address(true, true, Excel.XlReferenceStyle.xlA1, true);
+                            // CASO DE RANGO NORMAL (Varias celdas seleccionadas)
+                            DialogResult respuestaRango = MessageBox.Show(
+                                "Has seleccionado varias celdas. ¿Cómo deseas extraer sus opciones?\n\n" +
+                                "SÍ: Extraer SOLO NÚMEROS (Ignora letras).\n" +
+                                "NO: Mantener el TEXTO EXACTO (Ideal para celdas con letras como 'X').\n" +
+                                "CANCELAR: Usar el rango normal con todo su contenido original.",
+                                "Configuración de Catálogo",
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Question);
+
+                            if (respuestaRango == DialogResult.Cancel)
+                            {
+                                formulaOpciones = "=" + rangoOrigen.get_Address(true, true, Excel.XlReferenceStyle.xlA1, true);
+                            }
+                            else
+                            {
+                                System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
+
+                                foreach (Excel.Range celda in rangoOrigen.Cells)
+                                {
+                                    string textoCelda = celda.Text?.ToString() ?? "";
+
+                                    if (respuestaRango == DialogResult.Yes)
+                                    {
+                                        string soloNumeros = "";
+                                        foreach (char letra in textoCelda) { if (char.IsDigit(letra)) soloNumeros += letra; }
+                                        if (!string.IsNullOrEmpty(soloNumeros)) listaLimpios.Add(soloNumeros);
+                                    }
+                                    else
+                                    {
+                                        string textoLimpio = textoCelda.Trim();
+                                        if (!string.IsNullOrEmpty(textoLimpio)) listaLimpios.Add(textoLimpio);
+                                    }
+                                }
+
+                                if (listaLimpios.Count == 0)
+                                {
+                                    MessageBox.Show("No se encontraron valores en el rango seleccionado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    chkCatalogos.Checked = false;
+                                    return;
+                                }
+
+                                formulaOpciones = string.Join(separador, listaLimpios);
+                            }
                         }
                     }
 
-                    // 3. APLICAR LA VALIDACIÓN
+                    // 3. APLICAR LA VALIDACIÓN (Tu lógica original intacta)
                     try
                     {
                         _rangoCapturado.Validation.Delete();
@@ -290,7 +312,6 @@ namespace SAVCNG_ExcelDNA
                     }
                     catch (Exception ex)
                     {
-                        // Si vuelve a fallar, este mensaje nos dirá EXACTAMENTE qué texto intentó poner
                         MessageBox.Show("Error al aplicar la validación: " + ex.Message + "\n\nTexto que se intentó usar: " + formulaOpciones, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkCatalogos.Checked = false;
                     }
@@ -578,7 +599,7 @@ namespace SAVCNG_ExcelDNA
                                 Type.Missing,
                                 formulaRojo);
 
-                            formatoRojo.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
+                            formatoRojo.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 0, 0));
                             formatoRojo.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
                         }
 
