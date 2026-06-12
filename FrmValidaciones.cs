@@ -473,11 +473,10 @@ namespace SAVCNG_ExcelDNA
 
                         if (rangoCondicion.Count == 1)
                         {
-                            esFilaPorFila = true; // Solo una celda seleccionada, asumimos que baja fila por fila
+                            esFilaPorFila = true;
                         }
                         else if (_rangoCapturado.Rows.Count == rangoCondicion.Rows.Count)
                         {
-                            // ¡Magia! Los rangos miden exactamente lo mismo de alto.
                             DialogResult respFila = MessageBox.Show(
                                 "He detectado que el rango de condición tiene el MISMO número de filas que el rango a bloquear.\n\n" +
                                 "¿Deseas que la regla se aplique FILA POR FILA?\n" +
@@ -494,14 +493,30 @@ namespace SAVCNG_ExcelDNA
                             }
                         }
 
-                        // DIRECCIÓN LOCAL (Para bloquear/desbloquear las celdas capturadas)
-                        string dirCondicionLocal = esFilaPorFila
-                            ? rangoCondicion.Cells[1, 1].Address.Replace("$", "")  // Ej. A1 (Sin anclas)
-                            : rangoCondicion.Address;             // Ej. $A$1:$A$21 (Fija todo)
+                        // ==========================================================
+                        // CORRECCIÓN CRÍTICA: Anclar Columna ($A1) para Matrices
+                        // ==========================================================
+                        string dirCondicionLocal = "";
 
-                        // DIRECCIÓN GLOBAL (Para la instrucción amarilla, siempre debe monitorear todo el bloque)
+                        if (esFilaPorFila)
+                        {
+                            // .Address devuelve "$A$1". 
+                            string addressAbsoluta = rangoCondicion.Cells[1, 1].Address;
+
+                            // Lo partimos usando '$'. El arreglo quedará: ["", "A", "1"] (o ["", "AA", "12"])
+                            string[] partes = addressAbsoluta.Split('$');
+
+                            // Reconstruimos anclando SOLO LA COLUMNA: "$" + "A" + "1" = "$A1"
+                            dirCondicionLocal = "$" + partes[1] + partes[2];
+                        }
+                        else
+                        {
+                            // Búsqueda global, requiere anclas en ambos lados ($A$1:$A$21)
+                            dirCondicionLocal = rangoCondicion.Address;
+                        }
+
+                        // Siempre con anclas completas para búsqueda global de las instrucciones
                         string dirCondicionGlobal = rangoCondicion.Address;
-
 
                         // --- PASO 2: EL OPERADOR LÓGICO ---
                         object resultadoOperador = excelApp.InputBox(
@@ -546,6 +561,17 @@ namespace SAVCNG_ExcelDNA
                         bool esNumero = double.TryParse(valorCriterio, out _);
                         string valorFormateado = esNumero ? valorCriterio : $"\"{valorCriterio}\"";
 
+                        // ==========================================================
+                        // --- PASO 3.5: NUEVA REGLA DE CELDA VACÍA ---
+                        // ==========================================================
+                        DialogResult respuestaBlanco = MessageBox.Show(
+                            "¿Deseas que la matriz permanezca DESBLOQUEADA si la celda de condición está VACÍA?\n\n" +
+                            "SÍ = Si está en blanco, se puede escribir (se bloqueará solo si capturan una opción distinta a tu condición).\n" +
+                            "NO = Estricto (Si está en blanco, se bloquea por defecto).",
+                            "Regla de Celda Vacía",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+
                         // --- PASO 4: LA ALERTA ROJA ---
                         DialogResult respuestaRojo = MessageBox.Show(
                             "¿Deseas que la celda se resalte en ROJO cuando se desbloquee y esté vacía?\n\n(Ideal para los campos 'Especifique' que se vuelven obligatorios).",
@@ -561,10 +587,24 @@ namespace SAVCNG_ExcelDNA
                         _rangoCapturado.FormatConditions.Delete();
 
                         string criterioContarSi = $"\"{operador}\"&{valorFormateado}";
+                        string formulaValidacion = "";
+                        string formulaSombreado = "";
 
-                        // 1. DATA VALIDATION (Usamos dirCondicionLocal para evaluar fila por fila o global)
-                        string formulaValidacion = $"=CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})>0";
+                        // Construcción dinámica de fórmulas según la Regla de Celda Vacía
+                        if (respuestaBlanco == DialogResult.Yes)
+                        {
+                            // Validar: O(Está Vacía, Cuenta>0)
+                            formulaValidacion = $"=O(ESBLANCO({dirCondicionLocal}){separador}CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})>0)";
+                            // Sombrear Gris: Y(NO está vacía, Cuenta=0) -- Usamos =FALSO por compatibilidad de Excel
+                            formulaSombreado = $"=Y(ESBLANCO({dirCondicionLocal})=FALSO{separador}CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})=0)";
+                        }
+                        else
+                        {
+                            formulaValidacion = $"=CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})>0";
+                            formulaSombreado = $"=CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})=0";
+                        }
 
+                        // 1. DATA VALIDATION
                         _rangoCapturado.Validation.Add(
                             Excel.XlDVType.xlValidateCustom,
                             Excel.XlDVAlertStyle.xlValidAlertStop,
@@ -575,11 +615,9 @@ namespace SAVCNG_ExcelDNA
                         _rangoCapturado.Validation.IgnoreBlank = true;
                         _rangoCapturado.Validation.ShowError = true;
                         _rangoCapturado.Validation.ErrorTitle = "Celda Bloqueada";
-                        _rangoCapturado.Validation.ErrorMessage = $"No se permite capturar información. El flujo requiere encontrar una celda que sea {operador} {valorCriterio} en la referencia.";
+                        _rangoCapturado.Validation.ErrorMessage = $"No se permite capturar información. El flujo requiere que la condición sea {operador} {valorCriterio}.";
 
                         // 2. FORMATO CONDICIONAL 1 (Gris Bloqueado)
-                        string formulaSombreado = $"=CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})=0";
-
                         Excel.FormatCondition formatoGris = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
                             Excel.XlFormatConditionType.xlExpression,
                             Type.Missing,
@@ -591,6 +629,7 @@ namespace SAVCNG_ExcelDNA
                         // 3. FORMATO CONDICIONAL 2 (Alerta Roja)
                         if (respuestaRojo == DialogResult.Yes)
                         {
+                            // Usamos .Address sin anclas para que cada celda de la matriz evalúe su propio contenido
                             string dirCapturada = _rangoCapturado.Cells[1, 1].Address.Replace("$", "");
                             string formulaRojo = $"=Y(CONTAR.SI({dirCondicionLocal}{separador}{criterioContarSi})>0{separador}ESBLANCO({dirCapturada}))";
 
@@ -624,7 +663,6 @@ namespace SAVCNG_ExcelDNA
                                 Excel.Range rangoInstruccion = (Excel.Range)resultadoInstruccion;
                                 rangoInstruccion.FormatConditions.Delete();
 
-                                // Aquí usamos dirCondicionGlobal para que escanee todo el bloque buscando si ALGUNA fila se activó
                                 string formulaInstruccion = $"=CONTAR.SI({dirCondicionGlobal}{separador}{criterioContarSi})>0";
 
                                 Excel.FormatCondition formatoInstruccion = (Excel.FormatCondition)rangoInstruccion.FormatConditions.Add(
@@ -636,6 +674,7 @@ namespace SAVCNG_ExcelDNA
                                 formatoInstruccion.Font.Bold = true;
                             }
                         }
+
                         // ==========================================================
                         // --- PASO 5: MENSAJE DE ALERTA DINÁMICO EN CELDA ---
                         // ==========================================================
@@ -647,50 +686,43 @@ namespace SAVCNG_ExcelDNA
 
                         if (respuestaAlerta == DialogResult.Yes)
                         {
-                            // 1. Pedimos el texto del mensaje
                             object resultadoTexto = excelApp.InputBox(
                                 "Escribe el texto del mensaje de alerta (Ej: 'Especifique el nombre de la otra clasificación'):",
                                 "Texto del Mensaje",
-                                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
+                                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
                             if (!(resultadoTexto is bool && (bool)resultadoTexto == false))
                             {
                                 string textoAlerta = resultadoTexto.ToString().Trim();
 
-                                // 2. Pedimos el lugar donde va a aparecer
                                 object resultadoRangoAlerta = excelApp.InputBox(
                                     "Selecciona la celda o rango donde aparecerá este mensaje:",
                                     "Ubicación del Mensaje",
-                                    Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+                                    Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
 
                                 if (!(resultadoRangoAlerta is bool && (bool)resultadoRangoAlerta == false))
                                 {
                                     Excel.Range rangoAlerta = (Excel.Range)resultadoRangoAlerta;
 
-                                    // 3. ¡Magia! Si seleccionó más de una celda, las combinamos (Merge)
                                     if (rangoAlerta.Count > 1)
                                     {
                                         rangoAlerta.Merge();
                                     }
 
-                                    // 4. Aplicamos el formato rojo para que grite "¡Alerta!"
                                     rangoAlerta.Font.Bold = true;
                                     rangoAlerta.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Red);
-                                    rangoAlerta.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter; // Centrado horizontal
-                                    rangoAlerta.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;   // Centrado vertical
+                                    rangoAlerta.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                                    rangoAlerta.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
 
-                                    // 5. Construimos la fórmula lógica en INGLÉS UNIVERSAL
                                     string dirCapturadaGlobal = _rangoCapturado.Address;
 
-                                    // Usamos IF, COUNTIF, COUNTA y la coma estándar de programación (,). 
-                                    // Excel lo traducirá al idioma y símbolos locales mágicamente.
                                     string formulaAlerta = $"=IF(COUNTIF({dirCondicionGlobal},{criterioContarSi})>COUNTA({dirCapturadaGlobal}),\"{textoAlerta}\",\"\")";
 
-                                    // 6. Inyectamos la fórmula usando .Formula (NUNCA .FormulaLocal)
                                     rangoAlerta.Formula = formulaAlerta;
                                 }
                             }
                         }
+
                         chkBloqueo.Checked = false;
                         string modoAplicado = esFilaPorFila ? "Fila por Fila (Paralelo)" : "Búsqueda Global";
                         MessageBox.Show($"Validación de Bloqueo Dinámica aplicada con éxito.\nModo: {modoAplicado}\nRegla: {operador} {valorCriterio}", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -700,11 +732,6 @@ namespace SAVCNG_ExcelDNA
                         MessageBox.Show("Error al aplicar la Validación de Bloqueo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkBloqueo.Checked = false;
                     }
-                }
-
-                else
-                {
-                    MessageBox.Show("No has marcado ninguna validación para aplicar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
             }

@@ -46,14 +46,13 @@
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.chkNS = new System.Windows.Forms.CheckBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.chkFormatoTexto = new System.Windows.Forms.CheckBox();
             this.chkBloqueo = new System.Windows.Forms.CheckBox();
+            this.chkFormatoTexto = new System.Windows.Forms.CheckBox();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.panel2.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
-            this.tabPage2.SuspendLayout();
             this.SuspendLayout();
             // 
             // lblCenso
@@ -225,6 +224,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.chkFormatoTexto);
             this.tabPage1.Controls.Add(this.chkBloqueo);
             this.tabPage1.Controls.Add(this.chkNS);
             this.tabPage1.Controls.Add(this.chkCatalogos);
@@ -253,7 +253,6 @@
             // 
             // tabPage2
             // 
-            this.tabPage2.Controls.Add(this.chkFormatoTexto);
             this.tabPage2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabPage2.Location = new System.Drawing.Point(4, 24);
             this.tabPage2.Margin = new System.Windows.Forms.Padding(2);
@@ -263,17 +262,6 @@
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Validaciones Particulares";
             this.tabPage2.UseVisualStyleBackColor = true;
-            // 
-            // chkFormatoTexto
-            // 
-            this.chkFormatoTexto.AutoSize = true;
-            this.chkFormatoTexto.Location = new System.Drawing.Point(206, 3);
-            this.chkFormatoTexto.Margin = new System.Windows.Forms.Padding(2);
-            this.chkFormatoTexto.Name = "chkFormatoTexto";
-            this.chkFormatoTexto.Size = new System.Drawing.Size(105, 19);
-            this.chkFormatoTexto.TabIndex = 0;
-            this.chkFormatoTexto.Text = "Formato Texto";
-            this.chkFormatoTexto.UseVisualStyleBackColor = true;
             // 
             // chkBloqueo
             // 
@@ -285,6 +273,17 @@
             this.chkBloqueo.TabIndex = 11;
             this.chkBloqueo.Text = "Bloqueos";
             this.chkBloqueo.UseVisualStyleBackColor = true;
+            // 
+            // chkFormatoTexto
+            // 
+            this.chkFormatoTexto.AutoSize = true;
+            this.chkFormatoTexto.Location = new System.Drawing.Point(511, 22);
+            this.chkFormatoTexto.Margin = new System.Windows.Forms.Padding(2);
+            this.chkFormatoTexto.Name = "chkFormatoTexto";
+            this.chkFormatoTexto.Size = new System.Drawing.Size(105, 19);
+            this.chkFormatoTexto.TabIndex = 12;
+            this.chkFormatoTexto.Text = "Formato Texto";
+            this.chkFormatoTexto.UseVisualStyleBackColor = true;
             // 
             // FrmValidaciones
             // 
@@ -305,8 +304,6 @@
             this.tabControl1.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             this.tabPage1.PerformLayout();
-            this.tabPage2.ResumeLayout(false);
-            this.tabPage2.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -332,7 +329,7 @@
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label lblRangoSeleccionado;
-        private System.Windows.Forms.CheckBox chkFormatoTexto;
         private System.Windows.Forms.CheckBox chkBloqueo;
+        private System.Windows.Forms.CheckBox chkFormatoTexto;
     }
 }
