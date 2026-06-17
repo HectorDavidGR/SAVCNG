@@ -733,6 +733,113 @@ namespace SAVCNG_ExcelDNA
                         chkBloqueo.Checked = false;
                     }
                 }
+                else if (chkBlancos.Checked == true)
+                {
+                    try
+                    {
+                        // 1. Solicitar la Columna Base
+                        object resBase = excelApp.InputBox(
+                            "Selecciona el rango BASE (Ej. La columna con el Nombre del centro o Numeral).\n\n" +
+                            "Esta columna actuará como 'gatillo': le dirá a Excel qué filas de tu matriz son obligatorias.",
+                            "1. Columna Base de Obligatoriedad", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+
+                        if (resBase is bool && (bool)resBase == false) { chkBlancos.Checked = false; return; }
+                        Excel.Range rangoBase = (Excel.Range)resBase;
+
+                        // 2. Solicitar destino del Mensaje en Azul
+                        object resDestino = excelApp.InputBox(
+                            "Selecciona la celda o rango donde aparecerá el mensaje de alerta (Se combinará y pintará de azul automáticamente):",
+                            "2. Ubicación de Alerta", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+
+                        if (resDestino is bool && (bool)resDestino == false) { chkBlancos.Checked = false; return; }
+                        Excel.Range rangoDestino = (Excel.Range)resDestino;
+
+                        // 3. Solicitar texto del mensaje
+                        object resTexto = excelApp.InputBox(
+                            "Escribe el mensaje de advertencia:\n(El sistema evaluará toda la matriz y las celdas omitidas se pintarán de amarillo)",
+                            "3. Mensaje de Alerta", "Favor de revisar la información faltante en las celdas sombreadas", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
+
+                        if (resTexto is bool && (bool)resTexto == false) { chkBlancos.Checked = false; return; }
+                        string textoAlerta = resTexto.ToString().Trim();
+
+                        // ==========================================================
+                        // SANEAMIENTO ESPACIAL: ALINEACIÓN DE MATRICES
+                        // ==========================================================
+
+                        // Obtenemos SOLO la letra de la columna base para evitar que el usuario haya seleccionado una matriz ancha por error
+                        Excel.Range celdaBaseAux = (Excel.Range)rangoBase.Cells[1, 1];
+                        string letraColBase = celdaBaseAux.Address.Split('$')[1];
+
+                        // Forzamos a que el vector Base mida exactamente lo mismo en filas que la matriz capturada
+                        int filaInicio = _rangoCapturado.Row;
+                        int filaFin = filaInicio + _rangoCapturado.Rows.Count - 1;
+                        string dirBaseAlineadaAbs = $"${letraColBase}${filaInicio}:${letraColBase}${filaFin}";
+
+                        // ==========================================================
+                        // MOTOR MATRICIAL: CONSTRUCCIÓN DINÁMICA 1D x 1D
+                        // ==========================================================
+
+                        System.Collections.Generic.List<string> fragmentosSuma = new System.Collections.Generic.List<string>();
+
+                        // Iteramos columna por columna para que Excel multiplique vectores de tamaño idéntico (Evita el #N/D)
+                        for (int i = 1; i <= _rangoCapturado.Columns.Count; i++)
+                        {
+                            Excel.Range colActual = (Excel.Range)_rangoCapturado.Columns[i];
+                            string dirColAbs = colActual.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+
+                            // Fragmento: SUMPRODUCT((Base<>"")*(ColumnaActual=""))
+                            fragmentosSuma.Add($"SUMPRODUCT(({dirBaseAlineadaAbs}<>\"\")*({dirColAbs}=\"\"))");
+                        }
+
+                        // Unimos todos los fragmentos sumándolos
+                        string motorSuma = string.Join("+", fragmentosSuma);
+
+                        // Inyectamos la fórmula final en Inglés Universal
+                        string formulaGlobal = $"=IF(({motorSuma})>0, \"{textoAlerta}\", \"\")";
+
+                        // B. Preparación UI/UX de la celda de destino
+                        if (rangoDestino.Count > 1) { rangoDestino.Merge(); }
+
+                        rangoDestino.Font.Name = "Arial";
+                        rangoDestino.Font.Size = 10;
+                        rangoDestino.Font.Bold = true;
+                        rangoDestino.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(0, 112, 192)); // Azul Institucional
+                        rangoDestino.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+
+                        // Asignación directa
+                        rangoDestino.Formula = formulaGlobal;
+
+                        // ==========================================================
+                        // FORMATO CONDICIONAL: ÁLGEBRA BOOLEANA (UNIVERSAL)
+                        // ==========================================================
+
+                        _rangoCapturado.FormatConditions.Delete();
+
+                        // Obtenemos la primera celda capturada sin anclas (Ej. M52)
+                        Excel.Range celdaCapAux = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        string celdaCapRelativa = celdaCapAux.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                        // En lugar de usar =AND() que falla al traducirse en Excel español mediante Interop,
+                        // usamos multiplicación lógica. Si (D52 no es vacío) * (M52 sí es vacío) da 1, se pinta de amarillo.
+                        string formulaCondicionalMatematica = $"=(${letraColBase}{filaInicio}<>\"\")*({celdaCapRelativa}=\"\")";
+
+                        Excel.FormatCondition formatoAmarillo = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
+                            Excel.XlFormatConditionType.xlExpression, Type.Missing, formulaCondicionalMatematica);
+
+                        formatoAmarillo.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
+
+                        // Auditoría (Si tienes el método implementado)
+                        // RegistrarAuditoriaSilenciosa("Validación de Blancos Matriz", _rangoCapturado.Address, $"Columna gatillo: {letraColBase}");
+
+                        chkBlancos.Checked = false;
+                        MessageBox.Show("Validación de campos vacíos aplicada correctamente.\n\nEl sistema ahora evalúa de forma balanceada la matriz.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error en el motor de validación de blancos: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkBlancos.Checked = false;
+                    }
+                }
 
             }
             catch (Exception ex)
@@ -792,6 +899,19 @@ namespace SAVCNG_ExcelDNA
                 {
                     MessageBox.Show("Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     chkNS.Checked = false; // Desmarcamos la casilla
+                }
+            }
+        }
+
+        private void chkBlancos_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkBlancos.Checked)
+            {
+                // Validamos la regla de negocio: Nada ocurre si no se ha mapeado el terreno previamente
+                if (_libroCenso == null || _rangoCapturado == null)
+                {
+                    MessageBox.Show("Operación denegada: Carga un censo y define el rango de memoria primero.", "Advertencia Arquitectónica", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    chkBlancos.Checked = false;
                 }
             }
         }

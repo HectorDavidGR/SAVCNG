@@ -78,6 +78,7 @@
   <ItemGroup>
     <None Include="documentacion\CHANGELOG_v2.2.1.md" />
     <None Include="documentacion\documentacion_savcng.md" />
+    <None Include="documentacion\documentacion_savcng_17-06-2026.md" />
     <None Include="documentacion\documentacion_savcng_2.2.1.md" />
     <None Include="documentacion\documentacion_savcng_2025-01-09.md" />
     <None Include="documentacion\documentacion_savcng_2026-05-19.md" />

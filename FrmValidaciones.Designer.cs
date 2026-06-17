@@ -44,10 +44,11 @@
             this.label2 = new System.Windows.Forms.Label();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.chkFormatoTexto = new System.Windows.Forms.CheckBox();
+            this.chkBloqueo = new System.Windows.Forms.CheckBox();
             this.chkNS = new System.Windows.Forms.CheckBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.chkBloqueo = new System.Windows.Forms.CheckBox();
-            this.chkFormatoTexto = new System.Windows.Forms.CheckBox();
+            this.chkBlancos = new System.Windows.Forms.CheckBox();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.panel2.SuspendLayout();
@@ -224,6 +225,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.chkBlancos);
             this.tabPage1.Controls.Add(this.chkFormatoTexto);
             this.tabPage1.Controls.Add(this.chkBloqueo);
             this.tabPage1.Controls.Add(this.chkNS);
@@ -238,6 +240,28 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Validaciones Generales";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // chkFormatoTexto
+            // 
+            this.chkFormatoTexto.AutoSize = true;
+            this.chkFormatoTexto.Location = new System.Drawing.Point(511, 22);
+            this.chkFormatoTexto.Margin = new System.Windows.Forms.Padding(2);
+            this.chkFormatoTexto.Name = "chkFormatoTexto";
+            this.chkFormatoTexto.Size = new System.Drawing.Size(105, 19);
+            this.chkFormatoTexto.TabIndex = 12;
+            this.chkFormatoTexto.Text = "Formato Texto";
+            this.chkFormatoTexto.UseVisualStyleBackColor = true;
+            // 
+            // chkBloqueo
+            // 
+            this.chkBloqueo.AutoSize = true;
+            this.chkBloqueo.Location = new System.Drawing.Point(403, 22);
+            this.chkBloqueo.Margin = new System.Windows.Forms.Padding(2);
+            this.chkBloqueo.Name = "chkBloqueo";
+            this.chkBloqueo.Size = new System.Drawing.Size(78, 19);
+            this.chkBloqueo.TabIndex = 11;
+            this.chkBloqueo.Text = "Bloqueos";
+            this.chkBloqueo.UseVisualStyleBackColor = true;
             // 
             // chkNS
             // 
@@ -263,27 +287,15 @@
             this.tabPage2.Text = "Validaciones Particulares";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // chkBloqueo
+            // chkBlancos
             // 
-            this.chkBloqueo.AutoSize = true;
-            this.chkBloqueo.Location = new System.Drawing.Point(403, 22);
-            this.chkBloqueo.Margin = new System.Windows.Forms.Padding(2);
-            this.chkBloqueo.Name = "chkBloqueo";
-            this.chkBloqueo.Size = new System.Drawing.Size(78, 19);
-            this.chkBloqueo.TabIndex = 11;
-            this.chkBloqueo.Text = "Bloqueos";
-            this.chkBloqueo.UseVisualStyleBackColor = true;
-            // 
-            // chkFormatoTexto
-            // 
-            this.chkFormatoTexto.AutoSize = true;
-            this.chkFormatoTexto.Location = new System.Drawing.Point(511, 22);
-            this.chkFormatoTexto.Margin = new System.Windows.Forms.Padding(2);
-            this.chkFormatoTexto.Name = "chkFormatoTexto";
-            this.chkFormatoTexto.Size = new System.Drawing.Size(105, 19);
-            this.chkFormatoTexto.TabIndex = 12;
-            this.chkFormatoTexto.Text = "Formato Texto";
-            this.chkFormatoTexto.UseVisualStyleBackColor = true;
+            this.chkBlancos.AutoSize = true;
+            this.chkBlancos.Location = new System.Drawing.Point(18, 60);
+            this.chkBlancos.Name = "chkBlancos";
+            this.chkBlancos.Size = new System.Drawing.Size(70, 19);
+            this.chkBlancos.TabIndex = 13;
+            this.chkBlancos.Text = "Blancos";
+            this.chkBlancos.UseVisualStyleBackColor = true;
             // 
             // FrmValidaciones
             // 
@@ -331,5 +343,6 @@
         private System.Windows.Forms.Label lblRangoSeleccionado;
         private System.Windows.Forms.CheckBox chkBloqueo;
         private System.Windows.Forms.CheckBox chkFormatoTexto;
+        private System.Windows.Forms.CheckBox chkBlancos;
     }
 }
