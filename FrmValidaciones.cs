@@ -841,6 +841,47 @@ namespace SAVCNG_ExcelDNA
                     }
                 }
 
+                //=====================================================================================================
+                // --- INICIO DEL NUEVO CÓDIGO PARA AÑOS ---
+                //=====================================================================================================
+
+                else if (checkBox1.Checked == true)
+                {
+                    try
+                    {
+                        // 1. Limpiamos validaciones previas para evitar conflictos en la celda
+                        _rangoCapturado.Validation.Delete();
+
+                        // 2. Aplicamos la regla: Número entero entre 1951 (mayor a 1950) y 2026 (menor a 2027)
+                        // Al restringir a este rango, forzamos automáticamente que sean 4 dígitos.
+                        _rangoCapturado.Validation.Add(
+                            Excel.XlDVType.xlValidateWholeNumber,
+                            Excel.XlDVAlertStyle.xlValidAlertStop,
+                            Excel.XlFormatConditionOperator.xlBetween,
+                            "1951",
+                            "2026"); // <--- Aquí quitamos el Type.Missing que causaba el error
+
+                        // 3. Configuramos el mensaje de alerta exacto que solicitaste
+                        _rangoCapturado.Validation.IgnoreBlank = true;
+                        _rangoCapturado.Validation.ShowError = true;
+
+                        _rangoCapturado.Validation.ErrorTitle = "Validación";
+                        _rangoCapturado.Validation.ErrorMessage = "Año fuera de rango";
+
+                        // 4. Desmarcamos la casilla y notificamos al usuario
+                        checkBox1.Checked = false;
+                        MessageBox.Show("Validación de Años aplicada al rango capturado.", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error al aplicar Validación de Años: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        checkBox1.Checked = false;
+                    }
+                } // fin - else if (checkBox1.Checked == true)
+                //=====================================================================================================
+                // --- FIN DEL NUEVO CÓDIGO ---
+                //=====================================================================================================
+
             }
             catch (Exception ex)
             {
@@ -912,6 +953,20 @@ namespace SAVCNG_ExcelDNA
                 {
                     MessageBox.Show("Operación denegada: Carga un censo y define el rango de memoria primero.", "Advertencia Arquitectónica", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     chkBlancos.Checked = false;
+                }
+            }
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            // SI ==> MARCA la casilla
+            if (checkBox1.Checked) // <-- Corregido: antes decía chkAños.Checked
+            {
+                // Revisamos que no se haya saltado el paso 1 (Capturar rango)
+                if (_libroCenso == null || _rangoCapturado == null)
+                {
+                    MessageBox.Show("Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    checkBox1.Checked = false; // <-- Corregido: antes decía chkAños.Checked
                 }
             }
         }

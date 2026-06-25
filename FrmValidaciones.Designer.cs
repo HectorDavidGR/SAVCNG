@@ -44,11 +44,12 @@
             this.label2 = new System.Windows.Forms.Label();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.chkBlancos = new System.Windows.Forms.CheckBox();
             this.chkFormatoTexto = new System.Windows.Forms.CheckBox();
             this.chkBloqueo = new System.Windows.Forms.CheckBox();
             this.chkNS = new System.Windows.Forms.CheckBox();
             this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.chkBlancos = new System.Windows.Forms.CheckBox();
+            this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.panel2.SuspendLayout();
@@ -225,6 +226,7 @@
             // 
             // tabPage1
             // 
+            this.tabPage1.Controls.Add(this.checkBox1);
             this.tabPage1.Controls.Add(this.chkBlancos);
             this.tabPage1.Controls.Add(this.chkFormatoTexto);
             this.tabPage1.Controls.Add(this.chkBloqueo);
@@ -240,6 +242,16 @@
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Validaciones Generales";
             this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // chkBlancos
+            // 
+            this.chkBlancos.AutoSize = true;
+            this.chkBlancos.Location = new System.Drawing.Point(18, 60);
+            this.chkBlancos.Name = "chkBlancos";
+            this.chkBlancos.Size = new System.Drawing.Size(70, 19);
+            this.chkBlancos.TabIndex = 13;
+            this.chkBlancos.Text = "Blancos";
+            this.chkBlancos.UseVisualStyleBackColor = true;
             // 
             // chkFormatoTexto
             // 
@@ -287,15 +299,16 @@
             this.tabPage2.Text = "Validaciones Particulares";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
-            // chkBlancos
+            // checkBox1
             // 
-            this.chkBlancos.AutoSize = true;
-            this.chkBlancos.Location = new System.Drawing.Point(18, 60);
-            this.chkBlancos.Name = "chkBlancos";
-            this.chkBlancos.Size = new System.Drawing.Size(70, 19);
-            this.chkBlancos.TabIndex = 13;
-            this.chkBlancos.Text = "Blancos";
-            this.chkBlancos.UseVisualStyleBackColor = true;
+            this.checkBox1.AutoSize = true;
+            this.checkBox1.Location = new System.Drawing.Point(303, 61);
+            this.checkBox1.Name = "checkBox1";
+            this.checkBox1.Size = new System.Drawing.Size(53, 19);
+            this.checkBox1.TabIndex = 14;
+            this.checkBox1.Text = "Años";
+            this.checkBox1.UseVisualStyleBackColor = true;
+            this.checkBox1.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
             // 
             // FrmValidaciones
             // 
@@ -344,5 +357,6 @@
         private System.Windows.Forms.CheckBox chkBloqueo;
         private System.Windows.Forms.CheckBox chkFormatoTexto;
         private System.Windows.Forms.CheckBox chkBlancos;
+        private System.Windows.Forms.CheckBox checkBox1;
     }
 }
