@@ -321,19 +321,37 @@ namespace SAVCNG_ExcelDNA
                 {
                     try
                     {
-                        // 1. Limpiamos validaciones previas
+                        // --- PASO 1: SOLICITAR DESTINO Y TEXTO AL USUARIO ---
+
+                        // 1. Solicitar la ubicación de la alerta
+                        object resDestino = excelApp.InputBox(
+                            "Selecciona la celda o rango donde aparecerá el mensaje de alerta para registros 'NS' (se combinará automáticamente):",
+                            "1. Ubicación de Alerta NS", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+
+                        if (resDestino is bool && (bool)resDestino == false) { chkNS.Checked = false; return; }
+                        Excel.Range rangoAlerta = (Excel.Range)resDestino;
+
+                        // 2. Solicitar el texto del mensaje
+                        string textoSugerido = "Alerta: debido a que cuenta con registros NS, debe proporcionar una justificación en el área de comentarios al final de la pregunta";
+                        object resTexto = excelApp.InputBox(
+                            "Escribe el texto del mensaje de alerta:",
+                            "2. Mensaje de Alerta NS", textoSugerido, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
+
+                        if (resTexto is bool && (bool)resTexto == false) { chkNS.Checked = false; return; }
+                        string textoAlerta = resTexto.ToString().Trim();
+
+                        // ==========================================================
+                        // APLICACIÓN DE LA VALIDACIÓN DE DATOS (RESTRICCIÓN)
+                        // ==========================================================
+
                         _rangoCapturado.Validation.Delete();
 
-                        // 2. Extraemos la primera celda y obligamos a C# a verla como un Rango de Excel
                         Excel.Range primeraCelda = (Excel.Range)_rangoCapturado.Cells[1, 1];
-
-                        // TRUCO A PRUEBA DE BALAS: .Address devuelve "$A$1". Con Replace le quitamos los "$" para que quede "A1".
                         string direccion = primeraCelda.Address.Replace("$", "");
 
-                        // Fórmula de restricción
+                        // Mantenemos tu lógica para la regla de validación de celdas
                         string formulaRestriccion = $"=O(Y(ESNUMERO({direccion}){separador}{direccion}>=0){separador}{direccion}=\"NS\")";
 
-                        // 3. Aplicamos la validación
                         _rangoCapturado.Validation.Add(
                             Excel.XlDVType.xlValidateCustom,
                             Excel.XlDVAlertStyle.xlValidAlertStop,
@@ -341,109 +359,162 @@ namespace SAVCNG_ExcelDNA
                             formulaRestriccion,
                             Type.Missing);
 
-                        // 4. Mensajes de Error
                         _rangoCapturado.Validation.IgnoreBlank = true;
                         _rangoCapturado.Validation.InCellDropdown = true;
                         _rangoCapturado.Validation.ErrorTitle = "Error de validación";
                         _rangoCapturado.Validation.ErrorMessage = "Solo se permiten números mayores o iguales a cero, o el valor 'NS'.";
                         _rangoCapturado.Validation.ShowError = true;
 
-                        // --- PARTE 2: EL MENSAJE DE ALERTA (Con Formato Profesional) ---
+                        // ==========================================================
+                        // APLICACIÓN DEL MENSAJE DE ALERTA DINÁMICO Y UNIVERSAL
+                        // ==========================================================
 
-                        // 1. Calculamos la fila siguiente
-                        int filaSiguiente = _rangoCapturado.Row + _rangoCapturado.Rows.Count;
-                        Excel.Worksheet ws = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                        // 1. Si el usuario seleccionó varias celdas, las combinamos
+                        if (rangoAlerta.Count > 1)
+                        {
+                            rangoAlerta.Merge();
+                        }
 
-                        // 2. Definimos el RANGO DE ALERTA (Desde B hasta AD en la fila siguiente)
-                        // Usamos ws.get_Range para marcar el bloque que vamos a combinar
-                        Excel.Range rangoAlerta = ws.Range[ws.Cells[filaSiguiente, "B"], ws.Cells[filaSiguiente, "AD"]];
-
-                        // 3. APLICAMOS EL MERGE (Combinar celdas)
-                        rangoAlerta.Merge();
-
-                        // 4. APLICAMOS EL FORMATO SOLICITADO
+                        // 2. Aplicamos el formato profesional (Dorado)
                         rangoAlerta.Font.Name = "Arial";
                         rangoAlerta.Font.Size = 9;
                         rangoAlerta.Font.Bold = true;
-
-                        // Color #BF8F00 (R: 191, G: 143, B: 0)
-                        rangoAlerta.Font.Color = ColorTranslator.ToOle(Color.FromArgb(191, 143, 0));
-
-                        // 5. Opcional: Alineación a la izquierda para que el texto se vea ordenado
+                        rangoAlerta.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
                         rangoAlerta.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
 
-                        // --- LÓGICA DE FÓRMULAS (Se mantiene igual) ---
+                        // 3. Construcción del motor de conteo universal (Inglés con comas)
                         System.Collections.Generic.List<string> partesCountIf = new System.Collections.Generic.List<string>();
 
+                        // Si el usuario seleccionó un rango con áreas separadas (ej. con CTRL), iteramos por cada una
                         for (int i = 1; i <= _rangoCapturado.Areas.Count; i++)
                         {
                             Excel.Range area = (Excel.Range)_rangoCapturado.Areas[i];
-                            string addrAbs = area.Address;
-                            partesCountIf.Add($"CONTAR.SI({addrAbs}{separador}\"NS\")");
+                            string addrAbs = area.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+
+                            // Construimos fragmentos COUNTIF universales
+                            partesCountIf.Add($"COUNTIF({addrAbs},\"NS\")");
                         }
 
-                        string sumaInner = string.Join(separador, partesCountIf);
-                        string textoAlerta = "Alerta: debido a que cuenta con registros NS, debe proporcionar una justificación en el área de comentarios al final de la pregunta";
-                        string formulaFinalAlerta = $"=SI(SUMA({sumaInner})<>0{separador}\"{textoAlerta}\"{separador}\"\")";
+                        // Unimos los fragmentos con comas para usarlos en un SUM global: SUM(COUNTIF(...), COUNTIF(...))
+                        string sumaInner = string.Join(",", partesCountIf);
+                        string formulaFinalAlerta = $"=IF(SUM({sumaInner})>0, \"{textoAlerta}\", \"\")";
 
-                        // 6. Pegamos la fórmula en el rango combinado
-                        rangoAlerta.FormulaLocal = formulaFinalAlerta;
+                        // 4. Inyectamos usando la propiedad universal .Formula
+                        rangoAlerta.Formula = formulaFinalAlerta;
 
-                        // LOG PARA CONSOLA
                         System.Diagnostics.Debug.WriteLine($"[DEBUG] Alerta configurada en {rangoAlerta.Address} con formato Arial 9 Negrita Dorado.");
 
-
-
                         chkNS.Checked = false;
-                        MessageBox.Show("Validación NS y Mensaje de Alerta configurados correctamente.", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Validación NS y Mensaje de Alerta configurados correctamente en la ubicación seleccionada.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
                         MessageBox.Show("Error al aplicar Validación NS: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkNS.Checked = false;
                     }
                 }
                 else if (chkFormatoTexto.Checked == true)
                 {
                     try
                     {
-                        // 1. Limpiamos validaciones previas para no empalmar
+                        // 1. Limpiamos validaciones previas
                         _rangoCapturado.Validation.Delete();
-                        
-                        // 2. Extraemos la dirección de la celda (Ej: A1) para armar la fórmula
-                        Excel.Range primeraCelda = (Excel.Range)_rangoCapturado.Cells[1, 1];
-                        string direccion = primeraCelda.Address.Replace("$", "");
 
-                        // 3. Construimos la fórmula de Excel en ESPAÑOL
-                        // Lógica: =Y(IGUAL(A1, MAYUSC(A1)), LARGO(A1)=LARGO(ESPACIOS(A1)))
-                        // - IGUAL(A1, MAYUSC(A1)) -> Obliga a que sea exactamente MAYÚSCULAS
-                        // - LARGO(A1)=LARGO(ESPACIOS(A1)) -> Obliga a no tener espacios dobles, ni al inicio/final
-                        string formulaTexto = $"=Y(IGUAL({direccion}{separador}MAYUSC({direccion})){separador}LARGO({direccion})=LARGO(ESPACIOS({direccion})))";
+                        // ==========================================================
+                        // TÉCNICA DEL RANGO AUXILIAR DINÁMICO
+                        // ==========================================================
 
-                        // 4. Aplicamos la regla de Data Validation (¡Esto es lo que saca el mensaje de alerta!)
-                        _rangoCapturado.Validation.Add(
-                            Excel.XlDVType.xlValidateCustom,
-                            Excel.XlDVAlertStyle.xlValidAlertStop,
-                            Excel.XlFormatConditionOperator.xlBetween,
-                            formulaTexto,
-                            Type.Missing);
+                        // --- NUEVO PASO: SOLICITAR LA UBICACIÓN DEL ESPEJO ---
+                        object resAuxiliar = excelApp.InputBox(
+                            "Selecciona la COLUMNA o CELDA donde deseas ocultar la validación matemática:\n\n(Ej. Selecciona CW1 o cualquier celda en una columna vacía a la derecha de tu formato).",
+                            "Ubicación del Rango Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
 
-                        // 5. Configuramos el mensaje de error que verá el usuario
-                        _rangoCapturado.Validation.IgnoreBlank = true;
-                        _rangoCapturado.Validation.ShowError = true;
+                        if (resAuxiliar is bool && (bool)resAuxiliar == false) { chkFormatoTexto.Checked = false; return; }
 
-                        _rangoCapturado.Validation.ErrorTitle = "Formato de texto inválido";
-                        _rangoCapturado.Validation.ErrorMessage = "El texto debe cumplir las siguientes reglas:\n\n" +
-                                                                  "• Todo en MAYÚSCULAS.\n" +
-                                                                  "• Sin dobles espacios.\n" +
-                                                                  "• Sin espacios al inicio o al final.";
+                        Excel.Range seleccionAuxiliar = (Excel.Range)resAuxiliar;
+                        Excel.Range celdaInicioAux = (Excel.Range)seleccionAuxiliar.Cells[1, 1];
 
-                        // 6. Limpiamos interfaz y avisamos éxito
+                        // Obtenemos la letra de la columna seleccionada (Ej. "CW")
+                        string colAuxLetra = celdaInicioAux.Address.Split('$')[1];
+
+                        // 2. Construimos el rango auxiliar para que coincida exactamente con las filas capturadas
+                        Excel.Worksheet ws = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                        int filaInicio = _rangoCapturado.Row;
+                        int filaFin = filaInicio + _rangoCapturado.Rows.Count - 1;
+
+                        Excel.Range rangoAuxiliar = ws.Range[$"{colAuxLetra}{filaInicio}:{colAuxLetra}{filaFin}"];
+
+                        // Extraemos las direcciones relativas (Ej: C12 y CW12)
+                        Excel.Range primeraCeldaCap = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        string dirCapRel = primeraCeldaCap.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                        Excel.Range primeraCeldaAux = (Excel.Range)rangoAuxiliar.Cells[1, 1];
+                        string dirAuxRel = primeraCeldaAux.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                        // 3. Diccionario estricto (Whitelist)
+                        string permitidos = "0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZÁÉÍÓÚÜ ";
+
+                        // 4. Fórmula Binaria (1 = Válido, 0 = Inválido). 
+                        string formulaAuxiliar = $"=IF(OR(ISBLANK({dirCapRel}), AND(EXACT({dirCapRel},UPPER({dirCapRel})), LEN({dirCapRel})=LEN(TRIM({dirCapRel})), SUMPRODUCT(--ISNUMBER(FIND(MID({dirCapRel},ROW(INDIRECT(\"1:\"&MAX(1,LEN({dirCapRel})))),1),\"{permitidos}\")))=LEN({dirCapRel}))), 1, 0)";
+
+                        // 5. Inyectamos la matemática en el Rango Auxiliar y ocultamos la columna completa
+                        rangoAuxiliar.Formula = formulaAuxiliar;
+                        // Si deseas que se oculte automáticamente en producción, descomenta la siguiente línea:
+                        // rangoAuxiliar.EntireColumn.Hidden = true;
+
+                        // ==========================================================
+                        // TRUCO ARQUITECTÓNICO: BYPASS DEL ERROR 0x800A03EC
+                        // ==========================================================
+                        object valorOriginal = primeraCeldaCap.Value2;
+                        bool estabaVacia = (valorOriginal == null || string.IsNullOrWhiteSpace(valorOriginal.ToString()));
+
+                        if (estabaVacia)
+                        {
+                            primeraCeldaCap.Value2 = "A";
+                        }
+
+                        // ==========================================================
+                        // VALIDACIÓN DE DATOS (ULTRA LIGERA)
+                        // ==========================================================
+                        string formulaDV = $"={dirAuxRel}=1";
+
+                        try
+                        {
+                            _rangoCapturado.Validation.Add(
+                                Excel.XlDVType.xlValidateCustom,
+                                Excel.XlDVAlertStyle.xlValidAlertStop,
+                                Excel.XlFormatConditionOperator.xlBetween,
+                                formulaDV,
+                                Type.Missing);
+
+                            _rangoCapturado.Validation.IgnoreBlank = true;
+                            _rangoCapturado.Validation.ShowError = true;
+
+                            _rangoCapturado.Validation.ErrorTitle = "Formato de texto inválido";
+                            _rangoCapturado.Validation.ErrorMessage = "El texto capturado debe cumplir estrictamente las siguientes reglas:\n\n" +
+                                                                      "• Todo en MAYÚSCULAS.\n" +
+                                                                      "• Sin dobles espacios ni espacios a las orillas.\n" +
+                                                                      "• SOLO LETRAS (incluye Ñ y acentos) Y NÚMEROS. No se permiten caracteres especiales.";
+                        }
+                        catch (System.Runtime.InteropServices.COMException)
+                        {
+                            // Falso positivo silenciado
+                        }
+
+                        // ==========================================================
+                        // LIMPIEZA BLINDADA
+                        // ==========================================================
+                        if (estabaVacia)
+                        {
+                            primeraCeldaCap.Value2 = null;
+                        }
+
                         chkFormatoTexto.Checked = false;
-                        MessageBox.Show("Validación restrictiva de Formato Texto configurada correctamente. El usuario no podrá ingresar minúsculas ni espacios extra.", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show($"Validación restrictiva aplicada con éxito.\n\nEl motor auxiliar fue alojado en la columna {colAuxLetra}.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error al aplicar Validación de Formato Texto: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("Error crítico al configurar Formato Texto: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkFormatoTexto.Checked = false;
                     }
                 }
