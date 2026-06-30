@@ -1,6 +1,4 @@
-﻿using Microsoft.Office.Interop.Excel;
-using System;
-using System.Drawing;
+﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel; // Importante para entenderse con Excel
 
@@ -100,35 +98,47 @@ namespace SAVCNG_ExcelDNA
                 // 2. Verificamos si la casilla de "Decimales" está marcada
                 if (chkDecimales.Checked == true)
                 {
-                    // Limpiamos formatos condicionales anteriores para no encimar reglas
-                    _rangoCapturado.FormatConditions.Delete();
+                    try
+                    {
+                        // 1. Limpiamos validaciones previas para no empalmar reglas
+                        _rangoCapturado.Validation.Delete();
 
-                    // 3. Obtenemos la dirección de la primera celda del rango (Ejemplo: "A1")
-                    // false, false significa que nos dará "A1" en lugar de "$A$1"
-                    Excel.Range primeraCelda = _rangoCapturado.Cells[1, 1];
-                    string direccion = primeraCelda.get_Address(false, false);
+                        // 2. Extraemos la dirección de la primera celda sin anclas (Ejemplo: A1)
+                        Excel.Range primeraCelda = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        string direccion = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
 
-                    // 4. Creamos la fórmula matemática de Excel en INGLÉS (Interop siempre usa inglés internamente)
-                    // La fórmula dice: "Si es un número Y además el número truncado es diferente al original, entonces tiene decimales"
-                    // En español sería =Y(ESNUMERO(A1), TRUNCAR(A1)<>A1)
-                    string formula = $"=Y(ESNUMERO({direccion}), TRUNCAR({direccion})<>{direccion})";
+                        // ==========================================================
+                        // FÓRMULA LOCAL (ESPAÑOL) + PROTECCIÓN DE CELDAS VACÍAS
+                        // ==========================================================
+                        // Usamos O(ESBLANCO(...)) para evitar que el motor de Validación rechace la fórmula
+                        // al ser inyectada en una celda vacía.
+                        string formulaDecimales = $"=O(ESBLANCO({direccion}){separador}Y(ESNUMERO({direccion}){separador}TRUNCAR({direccion})={direccion}))";
 
-                    // 5. Aplicamos la regla de formato condicional a todo el rango capturado
-                    Excel.FormatCondition formato = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
-                        Excel.XlFormatConditionType.xlExpression,
-                        Type.Missing,
-                        formula);
+                        // 3. Aplicamos la regla restrictiva (Data Validation)
+                        _rangoCapturado.Validation.Add(
+                            Excel.XlDVType.xlValidateCustom,
+                            Excel.XlDVAlertStyle.xlValidAlertStop,
+                            Excel.XlFormatConditionOperator.xlBetween,
+                            formulaDecimales,
+                            Type.Missing);
 
-                    // 6. Si detecta el error (un decimal), le decimos que pinte la celda (Fondo Amarillo, Letra Roja)
-                    formato.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
-                    formato.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Red);
-                    formato.Font.Bold = true;
+                        // 4. Configuramos el comportamiento de la ventana emergente
+                        _rangoCapturado.Validation.IgnoreBlank = true;
+                        _rangoCapturado.Validation.ShowError = true;
 
-                    // 7. Quitamos la marca de la casilla para dejarla lista para la siguiente vez
-                    chkDecimales.Checked = false;
+                        // 5. Textos personalizados para el usuario final (UX)
+                        _rangoCapturado.Validation.ErrorTitle = "Captura Inválida (Solo Enteros)";
+                        _rangoCapturado.Validation.ErrorMessage = "El formato de esta celda no admite números con decimales ni texto.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100).";
 
-                    // 8. Avisamos que todo salió bien
-                    MessageBox.Show("¡Validación de Decimales (Enteros) aplicada con éxito!", "Listo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        // 6. Limpiamos la interfaz y avisamos del éxito
+                        chkDecimales.Checked = false;
+                        MessageBox.Show("Validación restrictiva de Enteros aplicada con éxito.\n\nEl sistema lanzará una ventana emergente si el informante intenta capturar decimales o texto.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error crítico al aplicar Validación de Decimales: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkDecimales.Checked = false;
+                    }
                 }
                 else if (chkCatalogos.Checked == true)
                 {
