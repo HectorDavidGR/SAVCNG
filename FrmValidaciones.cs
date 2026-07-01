@@ -637,7 +637,7 @@ namespace SAVCNG_ExcelDNA
                             "Regla de Celda Vacía", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
                         DialogResult respuestaRojo = MessageBox.Show(
-                            "¿Deseas que la celda se resalte en ROJO cuando se desbloquee y esté vacía?\n\n(Ideal para los campos 'Especifique' que se vuelven obligatorios).",
+                            "¿Deseas que la celda se resalte cuando se desbloquee y esté vacía?\n\n(Ideal para los campos 'Especifique' que se vuelven obligatorios).",
                             "4. Resalte de Obligatoriedad", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
                         // ==========================================================
