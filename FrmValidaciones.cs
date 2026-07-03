@@ -844,42 +844,114 @@ namespace SAVCNG_ExcelDNA
                 //=====================================================================================================
                 // --- INICIO DEL NUEVO CÓDIGO PARA AÑOS ---
                 //=====================================================================================================
-
-                else if (checkBox1.Checked == true)
+                // UBICACIÓN: FrmValidaciones.cs - Dentro del evento btnAplicar_Click
+                else if (chkFechas.Checked == true)
                 {
+                    Excel.Validation objValidacion = null;
+                    Excel.Range celdaInicial = null;
+
                     try
                     {
-                        // 1. Limpiamos validaciones previas para evitar conflictos en la celda
-                        _rangoCapturado.Validation.Delete();
+                        // 1. CAPTURA DINÁMICA: Solicitar límite inferior usando InputBox nativo de Excel
+                        // El "2" al final indica que esperamos que devuelva texto
+                        object resultadoInferior = excelApp.InputBox(
+                            "Ingrese el año que servirá como LÍMITE INFERIOR (ej. 1821):",
+                            "SAVCNG - Parámetro de Control",
+                            "1821", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
-                        // 2. Aplicamos la regla: Número entero entre 1951 (mayor a 1950) y 2026 (menor a 2027)
-                        // Al restringir a este rango, forzamos automáticamente que sean 4 dígitos.
-                        _rangoCapturado.Validation.Add(
-                            Excel.XlDVType.xlValidateWholeNumber,
+                        // Si el usuario presiona "Cancelar", excelApp devuelve un booleano (false)
+                        if (resultadoInferior is bool && (bool)resultadoInferior == false) { chkFechas.Checked = false; return; }
+
+                        string inputInferior = resultadoInferior.ToString().Trim();
+                        if (string.IsNullOrWhiteSpace(inputInferior)) { chkFechas.Checked = false; return; }
+
+                        // 2. CAPTURA DINÁMICA: Solicitar límite superior
+                        object resultadoSuperior = excelApp.InputBox(
+                            "Ingrese el año que servirá como LÍMITE SUPERIOR (ej. 2026):",
+                            "SAVCNG - Parámetro de Control",
+                            "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
+
+                        if (resultadoSuperior is bool && (bool)resultadoSuperior == false) { chkFechas.Checked = false; return; }
+
+                        string inputSuperior = resultadoSuperior.ToString().Trim();
+                        if (string.IsNullOrWhiteSpace(inputSuperior)) { chkFechas.Checked = false; return; }
+
+                        // 3. VALIDACIÓN DE ENTRADAS: Asegurar consistencia numérica
+                        if (!int.TryParse(inputInferior, out int limiteInferior) || !int.TryParse(inputSuperior, out int limiteSuperior))
+                        {
+                            MessageBox.Show("Los límites ingresados deben ser números enteros válidos de 4 dígitos.", "Error de Parámetros", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            chkFechas.Checked = false;
+                            return;
+                        }
+
+                        if (limiteInferior > limiteSuperior)
+                        {
+                            MessageBox.Show("Error Lógico: El límite inferior no puede ser mayor que el límite superior.", "Error de Rango", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            chkFechas.Checked = false;
+                            return;
+                        }
+
+                        // 4. Optimizamos el rendimiento visual 
+                        excelApp.ScreenUpdating = false;
+
+                        // 5. Limpieza estricta de validaciones previas para evitar colisiones
+                        objValidacion = _rangoCapturado.Validation;
+                        objValidacion.Delete();
+
+                        // 6. Inteligencia Espacial: Obtenemos la primera celda en formato relativo ("A1")
+                        celdaInicial = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        string direccionRelativa = celdaInicial.get_Address(false, false, Excel.XlReferenceStyle.xlA1, Type.Missing, Type.Missing);
+
+                        // 7. Fórmula Localizada con límites dinámicos e inyección de la variable 'separador'
+                        string formulaValidacion = $"=O(ESPACIOS({direccionRelativa})=\"NS\"{separador}Y(ESNUMERO({direccionRelativa}){separador}{direccionRelativa}>={limiteInferior}{separador}{direccionRelativa}<={limiteSuperior}))";
+
+                        // 8. Inyección del motor de reglas personalizado
+                        objValidacion.Add(
+                            Excel.XlDVType.xlValidateCustom,
                             Excel.XlDVAlertStyle.xlValidAlertStop,
                             Excel.XlFormatConditionOperator.xlBetween,
-                            "1951",
-                            "2026"); // <--- Aquí quitamos el Type.Missing que causaba el error
+                            formulaValidacion,
+                            Type.Missing
+                        );
 
-                        // 3. Configuramos el mensaje de alerta exacto que solicitaste
-                        _rangoCapturado.Validation.IgnoreBlank = true;
-                        _rangoCapturado.Validation.ShowError = true;
+                        // 9. Configuración de UX: El mensaje de error ahora describe dinámicamente el rango elegido
+                        objValidacion.IgnoreBlank = true;
+                        objValidacion.ShowError = true;
+                        objValidacion.ErrorTitle = "Validación de Consistencia";
+                        objValidacion.ErrorMessage = $"El valor ingresado debe ser un año válido de 4 dígitos entre {limiteInferior} y {limiteSuperior}, o el código 'NS'.";
 
-                        _rangoCapturado.Validation.ErrorTitle = "Validación";
-                        _rangoCapturado.Validation.ErrorMessage = "Año fuera de rango";
-
-                        // 4. Desmarcamos la casilla y notificamos al usuario
-                        checkBox1.Checked = false;
-                        MessageBox.Show("Validación de Años aplicada al rango capturado.", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        // 10. Limpiamos interfaz y notificamos el éxito
+                        chkFechas.Checked = false;
+                        MessageBox.Show($"Validación de Años ({limiteInferior} a {limiteSuperior} o 'NS') aplicada correctamente al rango.", "SAVCNG - Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (System.Runtime.InteropServices.COMException comEx)
+                    {
+                        MessageBox.Show($"Error de sintaxis COM al inyectar la fórmula en Excel: {comEx.Message}\nCódigo de error: {comEx.ErrorCode}", "Error Crítico COM", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkFechas.Checked = false;
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error al aplicar Validación de Años: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        checkBox1.Checked = false;
+                        MessageBox.Show($"Error inesperado en el sistema: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkFechas.Checked = false;
                     }
-                } // fin - else if (checkBox1.Checked == true)
+                    finally
+                    {
+                        // 11. Prevención de fugas de memoria (Memory Leaking)
+                        if (celdaInicial != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaInicial);
+                        if (objValidacion != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(objValidacion);
+
+                        // Restaurar refresco de pantalla pase lo que pase
+                        excelApp.ScreenUpdating = true;
+                    }
+                }
+
+                // fin de codigo de años
+
+
+
+
                 //=====================================================================================================
-                // --- FIN DEL NUEVO CÓDIGO ---
+                // FIN FIN FIN = segui insertando aqui
                 //=====================================================================================================
 
             }
@@ -960,17 +1032,25 @@ namespace SAVCNG_ExcelDNA
         private void checkBox1_CheckedChanged(object sender, EventArgs e)
         {
             // SI ==> MARCA la casilla
-            if (checkBox1.Checked) // <-- Corregido: antes decía chkAños.Checked
+            if (chkFechas.Checked) // <-- Corregido: antes decía chkAños.Checked
             {
                 // Revisamos que no se haya saltado el paso 1 (Capturar rango)
                 if (_libroCenso == null || _rangoCapturado == null)
                 {
                     MessageBox.Show("Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    checkBox1.Checked = false; // <-- Corregido: antes decía chkAños.Checked
+                    chkFechas.Checked = false; // <-- Corregido: antes decía chkAños.Checked
                 }
             }
         }
 
+        private void checkedListBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
 
+        }
+
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }
