@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel; // Importante para entenderse con Excel
-
+using System.Text.RegularExpressions;
+using System.Reflection;
 namespace SAVCNG_ExcelDNA
 {
     public partial class FrmValidaciones : Form
@@ -834,6 +835,170 @@ namespace SAVCNG_ExcelDNA
                         chkBlancos.Checked = false;
                     }
                 }
+                else if (chkEspClave.Checked == true)
+                {
+                    if (_libroCenso == null || _rangoCapturado == null)
+                    {
+                        MessageBox.Show("Operación denegada: Captura la celda destino (Especifique) primero.",
+                                        "Arquitectura SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        chkEspClave.Checked = false;
+                        return;
+                    }
+
+                    Excel.Application xlApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+                    Excel.Worksheet ws = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                    Excel.Range rangoCatalogo = null;
+                    Excel.Range rangoMensaje = null;
+                    Excel.Range celdaMotor = null;
+
+                    try
+                    {
+                        // =========================================================================
+                        // FASE 1: RECOPILACIÓN DE ESPACIOS DE TRABAJO (UX)
+                        // =========================================================================
+                        rangoCatalogo = (Excel.Range)xlApp.InputBox(
+                            "1. Selecciona las OPCIONES DEL CATÁLOGO.",
+                            "Mapeo de Catálogo", Type: 8);
+                        if (rangoCatalogo == null) throw new Exception("Cancelado");
+
+                        rangoMensaje = (Excel.Range)xlApp.InputBox(
+                            "2. Selecciona donde se mostrará el MENSAJE DE ALERTA amarillo.",
+                            "Destino de Alerta", Type: 8);
+                        if (rangoMensaje == null) throw new Exception("Cancelado");
+
+                        celdaMotor = (Excel.Range)xlApp.InputBox(
+                            "3. Selecciona UNA CELDA VACÍA (columna AF en adelante) para construir el Diccionario Auxiliar de Busqueda.\nADVERTENCIA: Considere un espacio libre de dos columnas por N filas. (N = numero de opciones del catalogo)",
+                            "Generación del Motor Oculto", Type: 8);
+                        if (celdaMotor == null) throw new Exception("Cancelado");
+
+                        // =========================================================================
+                        // FASE 2: CONSTRUCCIÓN DEL MOTOR AUXILIAR MATRICIAL
+                        // =========================================================================
+                        Excel.Range primeraCeldaAzul = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        string dirAzulAbsoluta = primeraCeldaAzul.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+
+                        // 2.1 - Inyectamos la Celda Limpia (Elimina acentos y minúsculas en tiempo real nativo)
+                        Excel.Range celdaLimpiaAzul = celdaMotor.Offset[0, 0];
+                        string formulaLimpieza = $"=LOWER(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({dirAzulAbsoluta},\"á\",\"a\"),\"é\",\"e\"),\"í\",\"i\"),\"ó\",\"o\"),\"ú\",\"u\"))";
+                        celdaLimpiaAzul.Formula = formulaLimpieza;
+                        string dirLimpiaAbsoluta = celdaLimpiaAzul.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+
+                        int filaMotor = 1; // Comenzamos a escribir debajo de la celda limpia
+                        System.Collections.Generic.List<string> celdasResultadosBooleanos = new System.Collections.Generic.List<string>();
+
+                        // Limpiamos los formatos previos del catálogo para evitar acumulaciones
+                        rangoCatalogo.FormatConditions.Delete();
+
+                        // Iteramos sobre las celdas del catálogo seleccionado
+                        foreach (Excel.Range celdaCat in rangoCatalogo.Cells)
+                        {
+                            string textoOriginal = celdaCat.Text != null ? celdaCat.Text.ToString() : "";
+
+                            if (!string.IsNullOrWhiteSpace(textoOriginal) && textoOriginal.Trim() != "")
+                            {
+                                // -- INTELIGENCIA DE C# (Sustituye a O365) --
+                                // 1. Quitamos contenido entre paréntesis ej: "(transparencia)"
+                                string textoProcesado = Regex.Replace(textoOriginal, @"\(.*?\)", "").Trim();
+
+                                // 2. Quitamos acentos y pasamos a minúsculas
+                                textoProcesado = textoProcesado.ToLower()
+                                    .Replace("á", "a").Replace("é", "e").Replace("í", "i")
+                                    .Replace("ó", "o").Replace("ú", "u");
+
+                                // 3. Dividimos por conectores lógicos para obtener palabras clave puras
+                                string[] separadores = { " y/o ", " y ", " o ", " e ", ",", "/" };
+                                string[] palabrasClave = textoProcesado.Split(separadores, StringSplitOptions.RemoveEmptyEntries);
+
+                                // 4. Construimos la lógica nativa heredada (OR -> SEARCH)
+                                System.Collections.Generic.List<string> fragmentosSearch = new System.Collections.Generic.List<string>();
+                                foreach (string palabra in palabrasClave)
+                                {
+                                    string palabraLimpia = palabra.Trim();
+                                    if (palabraLimpia.Length > 2) // Omitimos letras sueltas
+                                    {
+                                        fragmentosSearch.Add($"ISNUMBER(SEARCH(\"{palabraLimpia}\", {dirLimpiaAbsoluta}))");
+                                    }
+                                }
+
+                                if (fragmentosSearch.Count > 0)
+                                {
+                                    Excel.Range filaValidacion = celdaMotor.Offset[filaMotor, 0];
+
+                                    // Columna 1 del motor: El nombre original (Solo como referencia visual)
+                                    filaValidacion.Value2 = textoOriginal;
+
+                                    // Columna 2 del motor: Inyectamos la fórmula booleana nativa
+                                    Excel.Range celdaMatch = celdaMotor.Offset[filaMotor, 1];
+                                    string formulaMatch = $"=OR({string.Join(",", fragmentosSearch)})";
+                                    celdaMatch.Formula = formulaMatch;
+
+                                    string dirMatchAbsoluta = celdaMatch.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+                                    celdasResultadosBooleanos.Add(dirMatchAbsoluta);
+
+                                    // =========================================================================
+                                    // FASE 3: TRUCO ARQUITECTÓNICO DE TRADUCCIÓN (Evitar #¿NOMBRE?)
+                                    // =========================================================================
+                                    string celdaCatRelativa = celdaCat.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+                                    string formulaFormatCondIngles = $"=AND({celdaCatRelativa}<>\"\", {dirMatchAbsoluta}=TRUE)";
+
+                                    // Inyectamos en celda dummy oculta para forzar la traducción al Excel del usuario
+                                    Excel.Range celdaDummy = ws.Cells[1048576, 16384]; // Última celda de la hoja XFD1048576
+                                    celdaDummy.Formula = formulaFormatCondIngles;
+                                    string formulaFormatCondLocal = celdaDummy.FormulaLocal; // ¡Aquí obtenemos el idioma local seguro!
+                                    celdaDummy.Clear();
+
+                                    // Aplicamos el formato condicional específico a la celda del catálogo
+                                    Excel.FormatCondition fc = (Excel.FormatCondition)celdaCat.FormatConditions.Add(
+                                        Excel.XlFormatConditionType.xlExpression,
+                                        Type.Missing,
+                                        formulaFormatCondLocal);
+
+                                    fc.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
+                                    fc.Font.Bold = true;
+
+                                    System.Runtime.InteropServices.Marshal.ReleaseComObject(fc);
+                                    System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaMatch);
+                                    filaMotor++;
+                                }
+                            }
+                        }
+
+                        // =========================================================================
+                        // FASE 4: VINCULACIÓN DEL MENSAJE DE ALERTA (B77)
+                        // =========================================================================
+                        if (celdasResultadosBooleanos.Count > 0)
+                        {
+                            string sumaResultados = string.Join(",", celdasResultadosBooleanos);
+                            // Si el motor detecta algún TRUE, arroja el mensaje.
+                            string formulaMensajeFinal = $"=IF(COUNTIF({celdaMotor.Offset[1, 1].get_Address(true, true)}:{celdaMotor.Offset[filaMotor - 1, 1].get_Address(true, true)}, TRUE)>0, \"Alerta: Revise el texto ingresado en el Especifique ya que podría existir en las opciones resaltadas en amarillo\", \"\")";
+
+                            if (rangoMensaje.Count > 1) { rangoMensaje.Merge(); }
+                            rangoMensaje.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+                            rangoMensaje.Font.Name = "Arial";
+                            rangoMensaje.Font.Size = 9;
+                            rangoMensaje.Font.Bold = true;
+                            rangoMensaje.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 144, 0));
+
+                            rangoMensaje.Formula = formulaMensajeFinal;
+                        }
+
+                        MessageBox.Show("El Diccionario de Palabras Clave fue construido con éxito.", "SAVCNG - ExcelDNA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.Message != "Cancelado")
+                        {
+                            MessageBox.Show("Operación Cancelada." + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                    finally
+                    {
+                        chkEspClave.Checked = false;
+                        if (rangoCatalogo != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoCatalogo);
+                        if (rangoMensaje != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoMensaje);
+                        if (celdaMotor != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaMotor);
+                    }
+                }
 
                 //=====================================================================================================
                 // --- INICIO DEL NUEVO CÓDIGO PARA AÑOS ---
@@ -1035,16 +1200,6 @@ namespace SAVCNG_ExcelDNA
                     chkFechas.Checked = false; // <-- Corregido: antes decía chkAños.Checked
                 }
             }
-        }
-
-        private void checkedListBox1_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void checkBox2_CheckedChanged(object sender, EventArgs e)
-        {
-
         }
     }
 }
