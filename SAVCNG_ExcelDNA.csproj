@@ -78,6 +78,7 @@
   <ItemGroup>
     <None Include="documentacion\CHANGELOG_v2.2.1.md" />
     <None Include="documentacion\documentacion_savcng.md" />
+    <None Include="documentacion\documentacion_savcng_11-07-2026.md" />
     <None Include="documentacion\documentacion_savcng_17-06-2026.md" />
     <None Include="documentacion\documentacion_savcng_2.2.1.md" />
     <None Include="documentacion\documentacion_savcng_2025-01-09.md" />
@@ -86,6 +87,7 @@
     <None Include="documentacion\documentacion_savcng_2026-06-12.md" />
     <None Include="documentacion\doc_savcng_20_06_2026.md" />
     <None Include="documentacion\MANIFEST_DOCUMENTACION_2026-06-12.md" />
+    <None Include="documentacion\manual_usuario_11-07-2026.md" />
     <None Include="documentacion\NOTAS_ACTUALIZACION_2026-06-12.md" />
     <None Include="documentacion\README_DOCUMENTACION.md" />
     <None Include="documentacion\RESUMEN_ACTUALIZACION_2026-06-12.md" />

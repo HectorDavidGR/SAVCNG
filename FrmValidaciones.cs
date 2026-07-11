@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Drawing;
 using System.Windows.Forms;
-using Excel = Microsoft.Office.Interop.Excel; // Importante para entenderse con Excel
 using System.Text.RegularExpressions;
 using System.Reflection;
+using Excel = Microsoft.Office.Interop.Excel; // Importante para entenderse con Excel
 namespace SAVCNG_ExcelDNA
 {
     public partial class FrmValidaciones : Form
@@ -1104,14 +1105,163 @@ namespace SAVCNG_ExcelDNA
                         excelApp.ScreenUpdating = true;
                     }
                 }
-
-                // fin de codigo de años
-
-
-
-
                 //=====================================================================================================
-                // FIN FIN FIN = segui insertando aqui
+                // --- INICIO DEL MÓDULO DE VALIDACIÓN DE SUMAS CRUZADAS Y VERTICALES ---
+                //=====================================================================================================
+                else if (chkSumas.Checked == true)
+                {
+                    Excel.Range rangoTotal = null;
+                    Excel.Range rangoDesagregados = null;
+                    Excel.Range rangoTotalesVerticales = null;
+                    Excel.Range celdaTotalAux = null;
+                    Excel.Range celdaDummy = null;
+
+                    try
+                    {
+                        // 1. Obtener los límites espaciales de la matriz capturada en el Paso 1
+                        int filaInicio = _rangoCapturado.Row;
+                        int filaFin = filaInicio + _rangoCapturado.Rows.Count - 1;
+
+                        // 2. UX de Captura: Solicitar la columna exacta que funge como TOTAL operativo
+                        object resTotal = excelApp.InputBox(
+                            "1. Selecciona la COLUMNA del TOTAL (debe coincidir con las filas del rango capturado):",
+                            "SAVCNG - Mapeo de Totales", Type: 8);
+
+                        if (resTotal is bool && (bool)resTotal == false) { chkSumas.Checked = false; return; }
+                        rangoTotal = (Excel.Range)resTotal;
+
+                        // 3. UX de Captura: Solicitar las columnas de los DESAGREGADOS (Soporta columnas no contiguas usando CTRL)
+                        object resDesagregados = excelApp.InputBox(
+                            "2. Selecciona las COLUMNAS de los DESAGREGADOS (Puedes usar CTRL para seleccionar varias separadas):",
+                            "SAVCNG - Mapeo de Desagregados", Type: 8);
+
+                        if (resDesagregados is bool && (bool)resDesagregados == false) { chkSumas.Checked = false; return; }
+                        rangoDesagregados = (Excel.Range)resDesagregados;
+
+                        // 4. UX de Captura: Solicitar las celdas destino de la sumatoria vertical (Fila de la sumatoria Σ)
+                        object resVerticales = excelApp.InputBox(
+                            "3. Selecciona la FILA o CELDAS destino para la Sumatoria Vertical (Σ) al final de la tabla:",
+                            "SAVCNG - Destino Suma Vertical", Type: 8);
+
+                        if (resVerticales is bool && (bool)resVerticales == false) { chkSumas.Checked = false; return; }
+                        rangoTotalesVerticales = (Excel.Range)resVerticales;
+
+                        // 5. Análisis Espacial: Extraer la columna de Total y limpiar las coordenadas
+                        celdaTotalAux = (Excel.Range)rangoTotal.Cells[1, 1];
+                        string letraTotal = celdaTotalAux.Address.Split('$')[1];
+
+                        System.Collections.Generic.List<string> letrasDesagregados = new System.Collections.Generic.List<string>();
+                        System.Collections.Generic.List<string> fragmentosExclusionNS = new System.Collections.Generic.List<string>();
+
+                        // Incluimos la columna Total en la protección contra registros "NS"
+                        fragmentosExclusionNS.Add($"COUNTIF(${letraTotal}{filaInicio},\"NS\")=0");
+                        fragmentosExclusionNS.Add($"COUNTIF(${letraTotal}{filaInicio},\"ns\")=0");
+
+                        // Iterar de forma segura sobre las áreas seleccionadas de desagregados para extraer sus letras de columna
+                        foreach (Excel.Range area in rangoDesagregados.Areas)
+                        {
+                            for (int c = 1; c <= area.Columns.Count; c++)
+                            {
+                                Excel.Range colCelda = (Excel.Range)area.Cells[1, c];
+                                string letra = colCelda.Address.Split('$')[1];
+
+                                if (!letrasDesagregados.Contains(letra))
+                                {
+                                    letrasDesagregados.Add(letra);
+                                    // Si cualquiera de estas celdas contiene NS o ns, la regla matemática NO debe activarse
+                                    fragmentosExclusionNS.Add($"COUNTIF(${letra}{filaInicio},\"NS\")=0");
+                                    fragmentosExclusionNS.Add($"COUNTIF(${letra}{filaInicio},\"ns\")=0");
+                                }
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(colCelda);
+                            }
+                        }
+
+                        // 6. Construcción del Álgebra Booleana (Fórmula en Inglés Universal con separadores de coma)
+                        string formulaSumandos = string.Join("+", letrasDesagregados.ConvertAll(l => $"${l}{filaInicio}"));
+                        string formulaCondicionesNS = string.Join(",", fragmentosExclusionNS);
+
+                        string formulaErrorFilaIngles = $"=AND(ISNUMBER(${letraTotal}{filaInicio}), {formulaCondicionesNS}, ${letraTotal}{filaInicio}<>({formulaSumandos}))";
+
+                        // =========================================================================
+                        // 7. TRUCO ARQUITECTÓNICO DE TRADUCCIÓN NATIVA (FILA-SENSIBLE)
+                        // =========================================================================
+                        // Ubicamos la celda dummy en la MISMA fila de inicio, pero en la última columna (XFD / 16384).
+                        // Esto evita que las referencias relativas de fila se desfasen al leer FormulaLocal.
+                        Excel.Worksheet wsActual = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                        celdaDummy = (Excel.Range)wsActual.Cells[filaInicio, 16384];
+
+                        celdaDummy.Formula = formulaErrorFilaIngles;
+                        string formulaErrorFilaLocal = celdaDummy.FormulaLocal;
+                        celdaDummy.Clear();
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                        celdaDummy = null;
+
+                        // =========================================================================
+                        // 8. AUDITORÍA DE COEXISTENCIA (PERMITE APILAMIENTO MULTINIVEL)
+                        // =========================================================================
+                        if (_rangoCapturado.FormatConditions.Count > 0)
+                        {
+                            DialogResult respFormato = MessageBox.Show(this,
+                                "Se detectaron reglas de validación de sumas previas en este rango.\n\n" +
+                                "¿Deseas CONSERVARLAS e integrar esta nueva capa de revisión?\n\n" +
+                                "SÍ = Apilar reglas (Recomendado para matrices jerárquicas con subtotales).\n" +
+                                "NO = Borrar las reglas anteriores y dejar solo esta nueva.",
+                                "SAVCNG - Formatos Condicionales Detectados",
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Warning);
+
+                            if (respFormato == DialogResult.Cancel) { return; }
+                            if (respFormato == DialogResult.No) { _rangoCapturado.FormatConditions.Delete(); }
+                        }
+
+                        // =========================================================================
+                        // 9. INYECCIÓN DEL FORMATO CONDICIONAL LOCALIZADO
+                        // =========================================================================
+                        Excel.FormatCondition fcError = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
+                            Excel.XlFormatConditionType.xlExpression, Type.Missing, formulaErrorFilaLocal);
+
+                        // Configuración estética del error: Fondo Rojo Claro con Fuente Roja Oscura
+                        fcError.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
+                        fcError.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
+
+                        // IMPORTANTE: Permitir que Excel continúe evaluando las otras reglas apiladas en la misma celda
+                        fcError.StopIfTrue = false;
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(fcError);
+
+                        // =========================================================================
+                        // 10. INYECCIÓN AUTOMATIZADA DE SUMATORIAS VERTICALES (CON GENERACIÓN DE MEMORIA LIMPIA)
+                        // =========================================================================
+                        foreach (Excel.Range celdaSumatoria in rangoTotalesVerticales.Cells)
+                        {
+                            string letraColVertical = celdaSumatoria.Address.Split('$')[1];
+                            celdaSumatoria.Formula = $"=SUM({letraColVertical}{filaInicio}:{letraColVertical}{filaFin})";
+
+                            // Liberación explícita e inmediata de la celda para evitar congelar el hilo de Excel
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaSumatoria);
+                        }
+
+                        // 11. Cierre del proceso UX
+                        chkSumas.Checked = false;
+                        MessageBox.Show(this, "Validación de consistencia horizontal (Sumas) y fórmulas verticales inyectadas con éxito.",
+                                        "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this, "Error crítico al inyectar el motor de sumas: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        chkSumas.Checked = false;
+                    }
+                    finally
+                    {
+                        // 12. Recolección de Basura COM estructurada para objetos raíz
+                        if (celdaTotalAux != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaTotalAux);
+                        if (celdaDummy != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                        if (rangoTotal != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoTotal);
+                        if (rangoDesagregados != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoDesagregados);
+                        if (rangoTotalesVerticales != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoTotalesVerticales);
+                    }
+                }
+                //=====================================================================================================
+                // --- FIN DEL MÓDULO DE VALIDACIÓN DE SUMAS ---
                 //=====================================================================================================
 
             }
@@ -1189,7 +1339,7 @@ namespace SAVCNG_ExcelDNA
             }
         }
 
-        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        private void chkFechas_CheckedChanged(object sender, EventArgs e)
         {
             // SI ==> MARCA la casilla
             if (chkFechas.Checked) // <-- Corregido: antes decía chkAños.Checked

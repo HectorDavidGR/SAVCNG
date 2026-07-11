@@ -68,6 +68,7 @@
             this.label6 = new System.Windows.Forms.Label();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
+            this.chkSumas = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.tableLayoutPanel1.SuspendLayout();
@@ -215,6 +216,7 @@
             this.tableLayoutPanel6.Controls.Add(this.chkFechas, 5, 0);
             this.tableLayoutPanel6.Controls.Add(this.chkNS, 1, 1);
             this.tableLayoutPanel6.Controls.Add(this.chkFormatoTexto, 0, 1);
+            this.tableLayoutPanel6.Controls.Add(this.chkSumas, 2, 1);
             this.tableLayoutPanel6.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tableLayoutPanel6.Location = new System.Drawing.Point(3, 170);
             this.tableLayoutPanel6.Name = "tableLayoutPanel6";
@@ -241,7 +243,7 @@
             // 
             this.chkBloqueo.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkBloqueo.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkBloqueo.Location = new System.Drawing.Point(145, 5);
+            this.chkBloqueo.Location = new System.Drawing.Point(146, 5);
             this.chkBloqueo.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkBloqueo.Name = "chkBloqueo";
             this.chkBloqueo.Size = new System.Drawing.Size(136, 55);
@@ -254,7 +256,7 @@
             // 
             this.chkCatalogos.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkCatalogos.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkCatalogos.Location = new System.Drawing.Point(287, 5);
+            this.chkCatalogos.Location = new System.Drawing.Point(289, 5);
             this.chkCatalogos.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkCatalogos.Name = "chkCatalogos";
             this.chkCatalogos.Size = new System.Drawing.Size(136, 55);
@@ -268,7 +270,7 @@
             // 
             this.chkDecimales.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkDecimales.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkDecimales.Location = new System.Drawing.Point(429, 5);
+            this.chkDecimales.Location = new System.Drawing.Point(432, 5);
             this.chkDecimales.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkDecimales.Name = "chkDecimales";
             this.chkDecimales.Size = new System.Drawing.Size(136, 55);
@@ -281,7 +283,7 @@
             // 
             this.chkEspClave.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkEspClave.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkEspClave.Location = new System.Drawing.Point(571, 5);
+            this.chkEspClave.Location = new System.Drawing.Point(575, 5);
             this.chkEspClave.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkEspClave.Name = "chkEspClave";
             this.chkEspClave.Size = new System.Drawing.Size(136, 55);
@@ -294,21 +296,21 @@
             // 
             this.chkFechas.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkFechas.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkFechas.Location = new System.Drawing.Point(714, 5);
+            this.chkFechas.Location = new System.Drawing.Point(719, 5);
             this.chkFechas.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkFechas.Name = "chkFechas";
-            this.chkFechas.Size = new System.Drawing.Size(140, 55);
+            this.chkFechas.Size = new System.Drawing.Size(135, 55);
             this.chkFechas.TabIndex = 14;
             this.chkFechas.Text = "Fechas";
             this.chkFechas.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkFechas.UseVisualStyleBackColor = true;
-            this.chkFechas.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
+            this.chkFechas.CheckedChanged += new System.EventHandler(this.chkFechas_CheckedChanged);
             // 
             // chkNS
             // 
             this.chkNS.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkNS.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkNS.Location = new System.Drawing.Point(145, 70);
+            this.chkNS.Location = new System.Drawing.Point(146, 70);
             this.chkNS.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkNS.Name = "chkNS";
             this.chkNS.Size = new System.Drawing.Size(136, 55);
@@ -502,7 +504,7 @@
             this.tabPage2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage2.Size = new System.Drawing.Size(910, 548);
+            this.tabPage2.Size = new System.Drawing.Size(870, 530);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Revisión / Utilidades";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -519,7 +521,7 @@
             this.tableLayoutPanel10.RowCount = 2;
             this.tableLayoutPanel10.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tableLayoutPanel10.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 410F));
-            this.tableLayoutPanel10.Size = new System.Drawing.Size(904, 544);
+            this.tableLayoutPanel10.Size = new System.Drawing.Size(864, 526);
             this.tableLayoutPanel10.TabIndex = 2031;
             // 
             // groupBox1
@@ -532,7 +534,7 @@
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox1.Location = new System.Drawing.Point(3, 3);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(446, 128);
+            this.groupBox1.Size = new System.Drawing.Size(426, 110);
             this.groupBox1.TabIndex = 2032;
             this.groupBox1.TabStop = false;
             // 
@@ -639,6 +641,18 @@
             this.tableLayoutPanel3.Size = new System.Drawing.Size(872, 68);
             this.tableLayoutPanel3.TabIndex = 0;
             // 
+            // chkSumas
+            // 
+            this.chkSumas.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.chkSumas.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkSumas.Location = new System.Drawing.Point(289, 70);
+            this.chkSumas.Name = "chkSumas";
+            this.chkSumas.Size = new System.Drawing.Size(136, 55);
+            this.chkSumas.TabIndex = 16;
+            this.chkSumas.Text = "Sumas";
+            this.chkSumas.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.chkSumas.UseVisualStyleBackColor = true;
+            // 
             // FrmValidaciones
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -717,5 +731,6 @@
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel10;
         private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.CheckBox chkSumas;
     }
 }
