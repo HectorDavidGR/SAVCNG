@@ -63,20 +63,20 @@ namespace SAVCNG_ExcelDNA
                     lblPregunta.Text = "Pregunta detectada: " + pregunta;
                     lblRangoSeleccionado.Text = "Rango seleccionado: " + _rangoCapturado.Address.Replace("$", "");
 
-                    MessageBox.Show("Se capturó correctamente el rango: " + _rangoCapturado.Address,
+                    MessageBox.Show(this,"Se capturó correctamente el rango: " + _rangoCapturado.Address,
                                     "Captura exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
                     // Si seleccionó una imagen, le avisamos
-                    MessageBox.Show("Por favor, selecciona celdas de Excel, no imágenes ni gráficos.",
+                    MessageBox.Show(this,"Por favor, selecciona celdas de Excel, no imágenes ni gráficos.",
                                     "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 }
             }
             catch (Exception ex)
             {
                 // Si algo sale mal, que no se rompa el programa, solo que nos avise
-                MessageBox.Show("Ocurrió un error al capturar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this,"Ocurrió un error al capturar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -92,7 +92,7 @@ namespace SAVCNG_ExcelDNA
                 // 1. Primero verificamos que el usuario no haya olvidado capturar un rango
                 if (_rangoCapturado == null)
                 {
-                    MessageBox.Show("¡Espera! Primero debes capturar un rango.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    MessageBox.Show(this,"¡Espera! Primero debes capturar un rango.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     return; // Detenemos el código aquí
                 }
 
@@ -133,11 +133,11 @@ namespace SAVCNG_ExcelDNA
 
                         // 6. Limpiamos la interfaz y avisamos del éxito
                         chkDecimales.Checked = false;
-                        MessageBox.Show("Validación restrictiva de Enteros aplicada con éxito.\n\nEl sistema lanzará una ventana emergente si el informante intenta capturar decimales o texto.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,"Validación restrictiva de Enteros aplicada con éxito.\n\nEl sistema lanzará una ventana emergente si el informante intenta capturar decimales o texto.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error crítico al aplicar Validación de Decimales: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,"Error crítico al aplicar Validación de Decimales: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkDecimales.Checked = false;
                     }
                 }
@@ -146,7 +146,7 @@ namespace SAVCNG_ExcelDNA
                     string formulaOpciones = "";
 
                     // PREGUNTA NUEVA: ¿Manual o desde Excel?
-                    DialogResult tipoEntrada = MessageBox.Show(
+                    DialogResult tipoEntrada = MessageBox.Show(this,
                         "¿Deseas escribir el valor de la lista manualmente (ej: un solo valor como 'X' o varios como '1,2,3')?\n\n" +
                         "SÍ: Escribir el valor directamente.\n" +
                         "NO: Seleccionar celdas de Excel.",
@@ -203,7 +203,7 @@ namespace SAVCNG_ExcelDNA
                         if (esCeldaUnicaOCombinada)
                         {
                             // AQUI CAMBIAMOS A YesNoCancel para dar 3 opciones
-                            DialogResult respuesta = MessageBox.Show(
+                            DialogResult respuesta = MessageBox.Show(this,
                                 "Has seleccionado una celda (o bloque combinado). ¿Cómo deseas extraer sus opciones?\n\n" +
                                 "SÍ: Extraer SOLO NÚMEROS (Limpia texto y deja ej: 1,2,9).\n" +
                                 "NO: Mantener el TEXTO EXACTO (Ideal para 'X' o palabras).\n" +
@@ -223,7 +223,7 @@ namespace SAVCNG_ExcelDNA
 
                                 if (string.IsNullOrWhiteSpace(textoCelda))
                                 {
-                                    MessageBox.Show("La celda origen está vacía. No se puede crear la lista.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    MessageBox.Show(this,"La celda origen está vacía. No se puede crear la lista.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                     chkCatalogos.Checked = false;
                                     return;
                                 }
@@ -258,7 +258,7 @@ namespace SAVCNG_ExcelDNA
                         else
                         {
                             // CASO DE RANGO NORMAL (Varias celdas seleccionadas)
-                            DialogResult respuestaRango = MessageBox.Show(
+                            DialogResult respuestaRango = MessageBox.Show(this,
                                 "Has seleccionado varias celdas. ¿Cómo deseas extraer sus opciones?\n\n" +
                                 "SÍ: Extraer SOLO NÚMEROS (Ignora letras).\n" +
                                 "NO: Mantener el TEXTO EXACTO (Ideal para celdas con letras como 'X').\n" +
@@ -294,7 +294,7 @@ namespace SAVCNG_ExcelDNA
 
                                 if (listaLimpios.Count == 0)
                                 {
-                                    MessageBox.Show("No se encontraron valores en el rango seleccionado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                    MessageBox.Show(this,"No se encontraron valores en el rango seleccionado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                                     chkCatalogos.Checked = false;
                                     return;
                                 }
@@ -320,11 +320,11 @@ namespace SAVCNG_ExcelDNA
                         _rangoCapturado.Validation.IgnoreBlank = true;
 
                         chkCatalogos.Checked = false;
-                        MessageBox.Show("¡Validación de catálogo aplicada con éxito!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,"¡Validación de catálogo aplicada con éxito!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error al aplicar la validación: " + ex.Message + "\n\nTexto que se intentó usar: " + formulaOpciones, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,"Error al aplicar la validación: " + ex.Message + "\n\nTexto que se intentó usar: " + formulaOpciones, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkCatalogos.Checked = false;
                     }
                 }
@@ -416,11 +416,11 @@ namespace SAVCNG_ExcelDNA
                         System.Diagnostics.Debug.WriteLine($"[DEBUG] Alerta configurada en {rangoAlerta.Address} con formato Arial 9 Negrita Dorado.");
 
                         chkNS.Checked = false;
-                        MessageBox.Show("Validación NS y Mensaje de Alerta configurados correctamente en la ubicación seleccionada.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,"Validación NS y Mensaje de Alerta configurados correctamente en la ubicación seleccionada.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error al aplicar Validación NS: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,"Error al aplicar Validación NS: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkNS.Checked = false;
                     }
                 }
@@ -521,11 +521,11 @@ namespace SAVCNG_ExcelDNA
                         }
 
                         chkFormatoTexto.Checked = false;
-                        MessageBox.Show($"Validación restrictiva aplicada con éxito.\n\nEl motor auxiliar fue alojado en la columna {colAuxLetra}.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,$"Validación restrictiva aplicada con éxito.\n\nEl motor auxiliar fue alojado en la columna {colAuxLetra}.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error crítico al configurar Formato Texto: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,"Error crítico al configurar Formato Texto: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkFormatoTexto.Checked = false;
                     }
                 }
@@ -560,7 +560,7 @@ namespace SAVCNG_ExcelDNA
                         }
                         else if (_rangoCapturado.Rows.Count == rangoCondicion.Rows.Count)
                         {
-                            DialogResult respFila = MessageBox.Show(
+                            DialogResult respFila = MessageBox.Show(this,
                                 "He detectado que el rango de condición tiene el MISMO número de filas que el rango a bloquear.\n\n" +
                                 "¿Deseas que la regla se aplique FILA POR FILA?\n" +
                                 "(Ej. Si se cumple la condición en la fila 12, SOLO se desbloquea la celda de la fila 12).\n\n" +
@@ -611,7 +611,7 @@ namespace SAVCNG_ExcelDNA
 
                         if (operador != "=" && operador != "<>" && operador != ">" && operador != "<" && operador != ">=" && operador != "<=")
                         {
-                            MessageBox.Show("Operador no reconocido.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            MessageBox.Show(this,"Operador no reconocido.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                             chkBloqueo.Checked = false;
                             return;
                         }
@@ -631,13 +631,13 @@ namespace SAVCNG_ExcelDNA
                         // ==========================================================
                         // --- PASO 3.5 y 4: REGLAS ADICIONALES ---
                         // ==========================================================
-                        DialogResult respuestaBlanco = MessageBox.Show(
+                        DialogResult respuestaBlanco = MessageBox.Show(this,
                             "¿Deseas que la matriz permanezca DESBLOQUEADA si la celda de condición está VACÍA?\n\n" +
                             "SÍ = Si está en blanco, se puede escribir.\n" +
                             "NO = Estricto (Si está en blanco, se bloquea por defecto).",
                             "Regla de Celda Vacía", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
-                        DialogResult respuestaRojo = MessageBox.Show(
+                        DialogResult respuestaRojo = MessageBox.Show(this,
                             "¿Deseas que la celda se resalte cuando se desbloquee y esté vacía?\n\n(Ideal para los campos 'Especifique' que se vuelven obligatorios).",
                             "4. Resalte de Obligatoriedad", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
@@ -650,7 +650,7 @@ namespace SAVCNG_ExcelDNA
                         // AUDITORÍA DE COEXISTENCIA
                         if (_rangoCapturado.FormatConditions.Count > 0)
                         {
-                            DialogResult respFormato = MessageBox.Show(
+                            DialogResult respFormato = MessageBox.Show(this,
                                 "Se detectaron reglas previas (ej. Validación de Blancos).\n\n" +
                                 "¿Deseas CONSERVARLAS y apilar el bloqueo encima?\n\n" +
                                 "SÍ = Conservar formatos previos.\nNO = Eliminar y aplicar solo el bloqueo.",
@@ -720,11 +720,11 @@ namespace SAVCNG_ExcelDNA
 
                         chkBloqueo.Checked = false;
                         string modoAplicado = esFilaPorFila ? "Fila por Fila (Paralelo)" : "Búsqueda Global";
-                        MessageBox.Show($"Validación de Bloqueo Dinámica aplicada con éxito.\nModo: {modoAplicado}\nRegla: {operador} {valorCriterio}", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,$"Validación de Bloqueo Dinámica aplicada con éxito.\nModo: {modoAplicado}\nRegla: {operador} {valorCriterio}", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error al aplicar la Validación de Bloqueo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,"Error al aplicar la Validación de Bloqueo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkBloqueo.Checked = false;
                     }
                 }
@@ -786,7 +786,7 @@ namespace SAVCNG_ExcelDNA
                         // NUEVA AUDITORÍA DE COEXISTENCIA PARA BLANCOS
                         if (_rangoCapturado.FormatConditions.Count > 0)
                         {
-                            DialogResult respFormato = MessageBox.Show(
+                            DialogResult respFormato = MessageBox.Show(this,
                                 "Se detectaron reglas de formato condicional previas (ej. Reglas de Bloqueo).\n\n" +
                                 "¿Deseas CONSERVAR las reglas existentes e integrar la técnica de blancos?\n\n" +
                                 "SÍ = Conservar formatos previos (Evita borrar tus bloques grises).\n" +
@@ -827,11 +827,11 @@ namespace SAVCNG_ExcelDNA
 
                         formatoAmarillo.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(47, 117, 181));
                         chkBlancos.Checked = false;
-                        MessageBox.Show("Validación de blancos inteligente aplicada.\n\nAhora el sistema ignora filas completamente vacías y coexiste con tus reglas de bloqueo.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,"Validación de blancos inteligente aplicada.\n\nAhora el sistema ignora filas completamente vacías y coexiste con tus reglas de bloqueo.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("Error en el motor de validación inteligente: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,"Error en el motor de validación inteligente: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkBlancos.Checked = false;
                     }
                 }
@@ -839,7 +839,7 @@ namespace SAVCNG_ExcelDNA
                 {
                     if (_libroCenso == null || _rangoCapturado == null)
                     {
-                        MessageBox.Show("Operación denegada: Captura la celda destino (Especifique) primero.",
+                        MessageBox.Show(this,"Operación denegada: Captura la celda destino (Especifique) primero.",
                                         "Arquitectura SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         chkEspClave.Checked = false;
                         return;
@@ -982,13 +982,14 @@ namespace SAVCNG_ExcelDNA
                             rangoMensaje.Formula = formulaMensajeFinal;
                         }
 
-                        MessageBox.Show("El Diccionario de Palabras Clave fue construido con éxito.", "SAVCNG - ExcelDNA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        // Nota el "this," como primer parámetro
+                        MessageBox.Show(this, "El Diccionario de Palabras Clave fue construido con éxito.", "SAVCNG - ExcelDNA", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
                         if (ex.Message != "Cancelado")
                         {
-                            MessageBox.Show("Operación Cancelada." + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show(this,"Operación Cancelada." + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                     }
                     finally
@@ -1038,14 +1039,14 @@ namespace SAVCNG_ExcelDNA
                         // 3. VALIDACIÓN DE ENTRADAS: Asegurar consistencia numérica
                         if (!int.TryParse(inputInferior, out int limiteInferior) || !int.TryParse(inputSuperior, out int limiteSuperior))
                         {
-                            MessageBox.Show("Los límites ingresados deben ser números enteros válidos de 4 dígitos.", "Error de Parámetros", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show(this,"Los límites ingresados deben ser números enteros válidos de 4 dígitos.", "Error de Parámetros", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             chkFechas.Checked = false;
                             return;
                         }
 
                         if (limiteInferior > limiteSuperior)
                         {
-                            MessageBox.Show("Error Lógico: El límite inferior no puede ser mayor que el límite superior.", "Error de Rango", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show(this,"Error Lógico: El límite inferior no puede ser mayor que el límite superior.", "Error de Rango", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             chkFechas.Checked = false;
                             return;
                         }
@@ -1081,16 +1082,16 @@ namespace SAVCNG_ExcelDNA
 
                         // 10. Limpiamos interfaz y notificamos el éxito
                         chkFechas.Checked = false;
-                        MessageBox.Show($"Validación de Años ({limiteInferior} a {limiteSuperior} o 'NS') aplicada correctamente al rango.", "SAVCNG - Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,$"Validación de Años ({limiteInferior} a {limiteSuperior} o 'NS') aplicada correctamente al rango.", "SAVCNG - Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (System.Runtime.InteropServices.COMException comEx)
                     {
-                        MessageBox.Show($"Error de sintaxis COM al inyectar la fórmula en Excel: {comEx.Message}\nCódigo de error: {comEx.ErrorCode}", "Error Crítico COM", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,$"Error de sintaxis COM al inyectar la fórmula en Excel: {comEx.Message}\nCódigo de error: {comEx.ErrorCode}", "Error Crítico COM", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkFechas.Checked = false;
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Error inesperado en el sistema: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this,$"Error inesperado en el sistema: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkFechas.Checked = false;
                     }
                     finally
@@ -1116,7 +1117,7 @@ namespace SAVCNG_ExcelDNA
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ocurrió un error al aplicar el formato: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this,"Ocurrió un error al aplicar el formato: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1154,7 +1155,7 @@ namespace SAVCNG_ExcelDNA
                 // Revisamos que no se haya saltado el paso 1 (Capturar rango)
                 if (_libroCenso == null || _rangoCapturado == null)
                 {
-                    MessageBox.Show("Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    MessageBox.Show(this,"Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     chkCatalogos.Checked = false; // Desmarcamos la casilla
                 }
                 // ¡Y listo! No hacemos nada más aquí, dejamos que el botón Aplicar haga el trabajo duro.
@@ -1169,7 +1170,7 @@ namespace SAVCNG_ExcelDNA
                 // Revisamos que no se haya saltado el paso 1 (Capturar rango)
                 if (_libroCenso == null || _rangoCapturado == null)
                 {
-                    MessageBox.Show("Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    MessageBox.Show(this,"Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     chkNS.Checked = false; // Desmarcamos la casilla
                 }
             }
@@ -1182,7 +1183,7 @@ namespace SAVCNG_ExcelDNA
                 // Validamos la regla de negocio: Nada ocurre si no se ha mapeado el terreno previamente
                 if (_libroCenso == null || _rangoCapturado == null)
                 {
-                    MessageBox.Show("Operación denegada: Carga un censo y define el rango de memoria primero.", "Advertencia Arquitectónica", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    MessageBox.Show(this,"Operación denegada: Carga un censo y define el rango de memoria primero.", "Advertencia Arquitectónica", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     chkBlancos.Checked = false;
                 }
             }
@@ -1196,10 +1197,11 @@ namespace SAVCNG_ExcelDNA
                 // Revisamos que no se haya saltado el paso 1 (Capturar rango)
                 if (_libroCenso == null || _rangoCapturado == null)
                 {
-                    MessageBox.Show("Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    MessageBox.Show(this,"Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     chkFechas.Checked = false; // <-- Corregido: antes decía chkAños.Checked
                 }
             }
         }
+
     }
 }
