@@ -329,102 +329,159 @@ namespace SAVCNG_ExcelDNA
                         chkCatalogos.Checked = false;
                     }
                 }
+                //=====================================================================================================
+                // --- INICIO DEL MÓDULO DE VALIDACIÓN DE NS ---
+                //=====================================================================================================
                 else if (chkNS.Checked == true)
                 {
+                    Excel.Worksheet wsActual = null;
+                    Excel.Range primeraCelda = null;
+                    Excel.Range celdaDummy = null;
+                    Excel.Range rangoAlerta = null;
+
                     try
                     {
-                        // --- PASO 1: SOLICITAR DESTINO Y TEXTO AL USUARIO ---
+                        wsActual = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                        Excel.Application xlApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
 
-                        // 1. Solicitar la ubicación de la alerta
-                        object resDestino = excelApp.InputBox(
-                            "Selecciona la celda o rango donde aparecerá el mensaje de alerta para registros 'NS' (se combinará automáticamente):",
-                            "1. Ubicación de Alerta NS", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
-
-                        if (resDestino is bool && (bool)resDestino == false) { chkNS.Checked = false; return; }
-                        Excel.Range rangoAlerta = (Excel.Range)resDestino;
-
-                        // 2. Solicitar el texto del mensaje
+                        // =========================================================================
+                        // FASE 1: UX DE CONFIGURACIÓN GLOBAL (SOLICITAR TEXTO UNA SOLA VEZ)
+                        // =========================================================================
                         string textoSugerido = "Alerta: debido a que cuenta con registros NS, debe proporcionar una justificación en el área de comentarios al final de la pregunta";
-                        object resTexto = excelApp.InputBox(
-                            "Escribe el texto del mensaje de alerta:",
-                            "2. Mensaje de Alerta NS", textoSugerido, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
+                        object resTexto = xlApp.InputBox(
+                            "Escribe el texto del mensaje de alerta que se aplicará a todas las preguntas detectadas:",
+                            "SAVCNG - Configuración Masiva NS (Permitiendo NA)", textoSugerido, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
 
                         if (resTexto is bool && (bool)resTexto == false) { chkNS.Checked = false; return; }
                         string textoAlerta = resTexto.ToString().Trim();
 
-                        // ==========================================================
-                        // APLICACIÓN DE LA VALIDACIÓN DE DATOS (RESTRICCIÓN)
-                        // ==========================================================
+                        // =========================================================================
+                        // FASE 2: ALGORITMO DE AGRUPACIÓN POR PREGUNTA (MATRICES PARALELAS)
+                        // =========================================================================
+                        var áreasPorPregunta = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<Excel.Range>>();
 
-                        _rangoCapturado.Validation.Delete();
-
-                        Excel.Range primeraCelda = (Excel.Range)_rangoCapturado.Cells[1, 1];
-                        string direccion = primeraCelda.Address.Replace("$", "");
-
-                        // Mantenemos tu lógica para la regla de validación de celdas
-                        string formulaRestriccion = $"=O(Y(ESNUMERO({direccion}){separador}{direccion}>=0){separador}{direccion}=\"NS\")";
-
-                        _rangoCapturado.Validation.Add(
-                            Excel.XlDVType.xlValidateCustom,
-                            Excel.XlDVAlertStyle.xlValidAlertStop,
-                            Excel.XlFormatConditionOperator.xlBetween,
-                            formulaRestriccion,
-                            Type.Missing);
-
-                        _rangoCapturado.Validation.IgnoreBlank = true;
-                        _rangoCapturado.Validation.InCellDropdown = true;
-                        _rangoCapturado.Validation.ErrorTitle = "Error de validación";
-                        _rangoCapturado.Validation.ErrorMessage = "Solo se permiten números mayores o iguales a cero, o el valor 'NS'.";
-                        _rangoCapturado.Validation.ShowError = true;
-
-                        // ==========================================================
-                        // APLICACIÓN DEL MENSAJE DE ALERTA DINÁMICO Y UNIVERSAL
-                        // ==========================================================
-
-                        // 1. Si el usuario seleccionó varias celdas, las combinamos
-                        if (rangoAlerta.Count > 1)
-                        {
-                            rangoAlerta.Merge();
-                        }
-
-                        // 2. Aplicamos el formato profesional (Dorado)
-                        rangoAlerta.Font.Name = "Arial";
-                        rangoAlerta.Font.Size = 9;
-                        rangoAlerta.Font.Bold = true;
-                        rangoAlerta.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
-                        rangoAlerta.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
-
-                        // 3. Construcción del motor de conteo universal (Inglés con comas)
-                        System.Collections.Generic.List<string> partesCountIf = new System.Collections.Generic.List<string>();
-
-                        // Si el usuario seleccionó un rango con áreas separadas (ej. con CTRL), iteramos por cada una
                         for (int i = 1; i <= _rangoCapturado.Areas.Count; i++)
                         {
-                            Excel.Range area = (Excel.Range)_rangoCapturado.Areas[i];
-                            string addrAbs = area.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+                            Excel.Range areaIndividual = (Excel.Range)_rangoCapturado.Areas[i];
+                            string idPregunta = ObtenerNumeroPregunta(areaIndividual);
 
-                            // Construimos fragmentos COUNTIF universales
-                            partesCountIf.Add($"COUNTIF({addrAbs},\"NS\")");
+                            if (!áreasPorPregunta.ContainsKey(idPregunta))
+                            {
+                                áreasPorPregunta[idPregunta] = new System.Collections.Generic.List<Excel.Range>();
+                            }
+                            áreasPorPregunta[idPregunta].Add(areaIndividual);
                         }
 
-                        // Unimos los fragmentos con comas para usarlos en un SUM global: SUM(COUNTIF(...), COUNTIF(...))
-                        string sumaInner = string.Join(",", partesCountIf);
-                        string formulaFinalAlerta = $"=IF(SUM({sumaInner})>0, \"{textoAlerta}\", \"\")";
+                        int preguntasProcesadas = 0;
 
-                        // 4. Inyectamos usando la propiedad universal .Formula
-                        rangoAlerta.Formula = formulaFinalAlerta;
+                        // =========================================================================
+                        // FASE 3: PROCESAMIENTO POR LOTES E INYECCIÓN EN CASCADA
+                        // =========================================================================
+                        foreach (var grupo in áreasPorPregunta)
+                        {
+                            string preguntaActual = grupo.Key;
+                            System.Collections.Generic.List<Excel.Range> listaÁreas = grupo.Value;
 
-                        System.Diagnostics.Debug.WriteLine($"[DEBUG] Alerta configurada en {rangoAlerta.Address} con formato Arial 9 Negrita Dorado.");
+                            // 1. UX Mapeo Dirigido: Solicitar la ubicación de la alerta por cada pregunta
+                            object resDestino = xlApp.InputBox(
+                                $"[PREGUNTA DETECTADA: {preguntaActual}]\n\nSelecciona la celda o rango destino donde aparecerá el mensaje de alerta amarillo:",
+                                $"SAVCNG - Destino Alerta Pregunta {preguntaActual}", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
 
+                            if (resDestino is bool && (bool)resDestino == false) continue;
+                            rangoAlerta = (Excel.Range)resDestino;
+
+                            // Lista exclusiva para almacenar los rastreadores de "NS"
+                            System.Collections.Generic.List<string> fragmentosCountIf = new System.Collections.Generic.List<string>();
+
+                            // 2. Inyección de la Validación Restrictiva área por área dentro de esta pregunta
+                            foreach (Excel.Range area in listaÁreas)
+                            {
+                                area.Validation.Delete();
+
+                                primeraCelda = (Excel.Range)area.Cells[1, 1];
+                                string direccionRelativa = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                                // MODIFICACIÓN CRÍTICA: La regla ahora permite valores numéricos >= 0, "NS" Y ADEMÁS ADMITE "NA"
+                                string formulaRestriccionIngles = $"=OR(AND(ISNUMBER({direccionRelativa}),{direccionRelativa}>=0),{direccionRelativa}=\"NS\",{direccionRelativa}=\"NA\")";
+
+                                // TRUCO DE TRADUCCIÓN NATIVA (FILA-SENSIBLE)
+                                int filaBaseArea = area.Row;
+                                celdaDummy = (Excel.Range)wsActual.Cells[filaBaseArea, 16384]; // Última columna (XFD)
+                                celdaDummy.Formula = formulaRestriccionIngles;
+                                string formulaRestriccionLocal = celdaDummy.FormulaLocal;
+                                celdaDummy.Clear();
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                                celdaDummy = null;
+
+                                // Inyección segura en el motor de celdas de Excel
+                                area.Validation.Add(
+                                    Excel.XlDVType.xlValidateCustom,
+                                    Excel.XlDVAlertStyle.xlValidAlertStop,
+                                    Excel.XlFormatConditionOperator.xlBetween,
+                                    formulaRestriccionLocal,
+                                    Type.Missing);
+
+                                area.Validation.IgnoreBlank = true;
+                                area.Validation.ShowError = true;
+                                area.Validation.ErrorTitle = "Error de validación (Censo)";
+                                area.Validation.ErrorMessage = "Solo se permiten números mayores o iguales a cero, o los valores especiales 'NS' y 'NA'.";
+
+                                // OJO: Solo agregamos COUNTIF para "NS". "NA" se escribe libremente pero no suma al activador del mensaje
+                                string addrAbsoluta = area.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+                                fragmentosCountIf.Add($"COUNTIF({addrAbsoluta},\"NS\")");
+
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCelda);
+                                primeraCelda = null;
+                            }
+
+                            // 3. Configuración Estética y Matemática de la Alerta Dinámica de la Pregunta
+                            if (rangoAlerta.Count > 1) { rangoAlerta.Merge(); }
+                            rangoAlerta.Font.Name = "Arial";
+                            rangoAlerta.Font.Size = 9;
+                            rangoAlerta.Font.Bold = true;
+                            rangoAlerta.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
+                            rangoAlerta.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+
+                            // Compilamos la fórmula final (Evaluará exclusivamente si existen "NS")
+                            string sumaInner = string.Join(",", fragmentosCountIf);
+                            string formulaFinalAlerta = $"=IF(SUM({sumaInner})>0, \"{textoAlerta}\", \"\")";
+
+                            rangoAlerta.Formula = formulaFinalAlerta;
+
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoAlerta);
+                            rangoAlerta = null;
+
+                            preguntasProcesadas++;
+                        }
+
+                        // =========================================================================
+                        // FASE 4: CONCLUSIÓN Y NOTIFICACIÓN UX
+                        // =========================================================================
                         chkNS.Checked = false;
-                        MessageBox.Show(this,"Validación NS y Mensaje de Alerta configurados correctamente en la ubicación seleccionada.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,
+                            $"Procesamiento por lotes finalizado con éxito.\n\n" +
+                            $"• Preguntas identificadas y configuradas: {preguntasProcesadas}\n" +
+                            $"• Total de sub-rangos/áreas protegidos: {_rangoCapturado.Areas.Count}\n\n" +
+                            $"Nota: Se admite la escritura de 'NA', pero solo los registros 'NS' detonarán la alerta amarilla.",
+                            "SAVCNG Automatización Masiva", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this,"Error al aplicar Validación NS: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, "Error crítico en el motor de masificación: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkNS.Checked = false;
                     }
+                    finally
+                    {
+                        // Limpieza de remanentes en memoria COM
+                        if (primeraCelda != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCelda);
+                        if (celdaDummy != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                        if (rangoAlerta != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoAlerta);
+                        if (wsActual != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsActual);
+                    }
                 }
+                //=====================================================================================================
+                // --- FIN DEL MÓDULO DE VALIDACIÓN DE NS ---
+                //=====================================================================================================
                 else if (chkFormatoTexto.Checked == true)
                 {
                     try
