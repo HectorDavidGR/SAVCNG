@@ -148,8 +148,8 @@ namespace SAVCNG_ExcelDNA
 
                     // PREGUNTA NUEVA: ¿Manual o desde Excel?
                     DialogResult tipoEntrada = MessageBox.Show(this,
-                        "¿Deseas escribir el valor de la lista manualmente (ej: un solo valor como 'X' o varios como '1,2,3')?\n\n" +
-                        "SÍ: Escribir el valor directamente.\n" +
+                        "¿Deseas escribir el(los) valor(es) del catálogo manualmente (ej: un solo valor como 'X' o varios como '1,2,9')?\n\n" +
+                        "SÍ: Escribir el(los) valor(es) directamente.\n" +
                         "NO: Seleccionar celdas de Excel.",
                         "Origen del Catálogo",
                         MessageBoxButtons.YesNo,
@@ -161,7 +161,7 @@ namespace SAVCNG_ExcelDNA
                         // CASO 1: ENTRADA MANUAL (Ideal para "X")
                         // ==========================================================
                         object resultadoTexto = excelApp.InputBox(
-                            "Escribe las opciones para tu lista desplegable.\n(Si son varias, sepáralas por comas):",
+                            "Escribe el(los) valor(es) para tu lista desplegable.\nNOTA: Si son varias deberan estar separadas por comas):",
                             "Escribir Opciones",
                             Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Solo Texto
 
@@ -187,7 +187,7 @@ namespace SAVCNG_ExcelDNA
                         // CASO 2: TU CÓDIGO ORIGINAL (Selección de Celdas)
                         // ==========================================================
                         object resultadoInput = excelApp.InputBox(
-                            "Selecciona el rango de opciones o la celda que contiene la lista (ej: 1,2,9):",
+                            "Selecciona el rango de opciones o la celda que contiene el catálogo (ej: 1,2,9):",
                             "Seleccionar Origen del Catálogo",
                             Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Solo Rango
 
@@ -203,105 +203,113 @@ namespace SAVCNG_ExcelDNA
 
                         if (esCeldaUnicaOCombinada)
                         {
-                            // AQUI CAMBIAMOS A YesNoCancel para dar 3 opciones
+                            // 1. Simplificación de UX: Pregunta directa de acción con OKCancel
                             DialogResult respuesta = MessageBox.Show(this,
-                                "Has seleccionado una celda (o bloque combinado). ¿Cómo deseas extraer sus opciones?\n\n" +
-                                "SÍ: Extraer SOLO NÚMEROS (Limpia texto y deja ej: 1,2,9).\n" +
-                                "NO: Mantener el TEXTO EXACTO (Ideal para 'X' o palabras).\n" +
-                                "CANCELAR: Usar como referencia de rango normal (=$A$1).",
+                                "Se ha detectado un único bloque de texto como catálogo.\n" +
+                                "¿Deseas que el sistema extraiga automáticamente SOLO LOS NÚMEROS (ej. 1, 2, 9) para crear las opciones?\n\n" +
+                                "• [Aceptar]: Extraer números y continuar.\n" +
+                                "• [Cancelar]: Abortar esta operación.",
                                 "Configuración de Catálogo",
-                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question);
 
+                            // 2. Manejo de la cancelación estricta (Abortar operación limpiamente)
                             if (respuesta == DialogResult.Cancel)
                             {
-                                formulaOpciones = "=" + rangoOrigen.get_Address(true, true, Excel.XlReferenceStyle.xlA1, true);
+                                // Interrumpimos el flujo, quitamos el check y salimos del método
+                                chkCatalogos.Checked = false;
+                                return;
                             }
-                            else
+
+                            // 3. Lógica de "Aceptar" (Extracción de texto del objeto COM)
+                            Excel.Range primeraCeldaOrigen = (Excel.Range)rangoOrigen.Cells[1, 1];
+                            string textoCelda = primeraCeldaOrigen.Text?.ToString() ?? "";
+
+                            // 4. Validación de seguridad (Prevenir errores de referencia nula)
+                            if (string.IsNullOrWhiteSpace(textoCelda))
                             {
-                                Excel.Range primeraCeldaOrigen = (Excel.Range)rangoOrigen.Cells[1, 1];
-                                string textoCelda = primeraCeldaOrigen.Text?.ToString() ?? "";
-
-                                if (string.IsNullOrWhiteSpace(textoCelda))
-                                {
-                                    MessageBox.Show(this,"La celda origen está vacía. No se puede crear la lista.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                    chkCatalogos.Checked = false;
-                                    return;
-                                }
-
-                                string[] pedacitos = textoCelda.Split(new char[] { '.', ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-                                System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
-
-                                if (respuesta == DialogResult.Yes)
-                                {
-                                    // SÍ: SOLO NÚMEROS (Tu lógica original)
-                                    foreach (string pedazo in pedacitos)
-                                    {
-                                        string soloNumeros = "";
-                                        foreach (char letra in pedazo) { if (char.IsDigit(letra)) soloNumeros += letra; }
-                                        if (!string.IsNullOrEmpty(soloNumeros)) listaLimpios.Add(soloNumeros);
-                                    }
-                                }
-                                else if (respuesta == DialogResult.No)
-                                {
-                                    // NO: TEXTO EXACTO
-                                    foreach (string pedazo in pedacitos)
-                                    {
-                                        string textoLimpio = pedazo.Trim();
-                                        if (!string.IsNullOrEmpty(textoLimpio)) listaLimpios.Add(textoLimpio);
-                                    }
-                                }
-
-                                string separadorSistema = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
-                                formulaOpciones = string.Join(separadorSistema, listaLimpios);
+                                MessageBox.Show(this, "La celda origen está vacía. No se puede extraer el catálogo.",
+                                                "Aviso Arquitectónico", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                chkCatalogos.Checked = false;
+                                return;
                             }
+
+                            // 5. Motor de separación y limpieza (Extraer únicamente los números)
+                            string[] pedacitos = textoCelda.Split(new char[] { '.', ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                            System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
+
+                            foreach (string pedazo in pedacitos)
+                            {
+                                string soloNumeros = "";
+
+                                // Iteramos por cada carácter buscando dígitos
+                                foreach (char letra in pedazo)
+                                {
+                                    if (char.IsDigit(letra)) soloNumeros += letra;
+                                }
+
+                                // Solo lo agregamos si realmente encontró un número
+                                if (!string.IsNullOrEmpty(soloNumeros))
+                                {
+                                    listaLimpios.Add(soloNumeros);
+                                }
+                            }
+
+                            // 6. Construcción de la cadena final nativa
+                            string separadorSistema = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
+                            formulaOpciones = string.Join(separadorSistema, listaLimpios);
                         }
                         else
                         {
-                            // CASO DE RANGO NORMAL (Varias celdas seleccionadas)
+                            // 1. Simplificación de UX: Pregunta directa y coherente con el paso anterior
                             DialogResult respuestaRango = MessageBox.Show(this,
-                                "Has seleccionado varias celdas. ¿Cómo deseas extraer sus opciones?\n\n" +
-                                "SÍ: Extraer SOLO NÚMEROS (Ignora letras).\n" +
-                                "NO: Mantener el TEXTO EXACTO (Ideal para celdas con letras como 'X').\n" +
-                                "CANCELAR: Usar el rango normal con todo su contenido original.",
+                                "Se han detectado varias celdas seleccionadas como catálogo.\n" +
+                                "¿Deseas que el sistema extraiga automáticamente SOLO LOS NÚMEROS (ej. 1, 2, 9) de cada celda para crear las opciones?\n\n" +
+                                "• [Aceptar]: Extraer números y continuar.\n" +
+                                "• [Cancelar]: Abortar esta operación.",
                                 "Configuración de Catálogo",
-                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question);
 
+                            // 2. Manejo de la cancelación estricta (Abortar operación limpiamente)
                             if (respuestaRango == DialogResult.Cancel)
                             {
-                                formulaOpciones = "=" + rangoOrigen.get_Address(true, true, Excel.XlReferenceStyle.xlA1, true);
+                                chkCatalogos.Checked = false;
+                                return;
                             }
-                            else
+
+                            // 3. Lógica de extracción de "Aceptar" (Solo iteración de números)
+                            System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
+
+                            foreach (Excel.Range celda in rangoOrigen.Cells)
                             {
-                                System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
+                                string textoCelda = celda.Text?.ToString() ?? "";
+                                string soloNumeros = "";
 
-                                foreach (Excel.Range celda in rangoOrigen.Cells)
+                                // Escaneamos la cadena carácter por carácter buscando dígitos
+                                foreach (char letra in textoCelda)
                                 {
-                                    string textoCelda = celda.Text?.ToString() ?? "";
-
-                                    if (respuestaRango == DialogResult.Yes)
-                                    {
-                                        string soloNumeros = "";
-                                        foreach (char letra in textoCelda) { if (char.IsDigit(letra)) soloNumeros += letra; }
-                                        if (!string.IsNullOrEmpty(soloNumeros)) listaLimpios.Add(soloNumeros);
-                                    }
-                                    else
-                                    {
-                                        string textoLimpio = textoCelda.Trim();
-                                        if (!string.IsNullOrEmpty(textoLimpio)) listaLimpios.Add(textoLimpio);
-                                    }
+                                    if (char.IsDigit(letra)) soloNumeros += letra;
                                 }
 
-                                if (listaLimpios.Count == 0)
+                                // Si la celda tenía números, la agregamos a la lista limpia
+                                if (!string.IsNullOrEmpty(soloNumeros))
                                 {
-                                    MessageBox.Show(this,"No se encontraron valores en el rango seleccionado.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                    chkCatalogos.Checked = false;
-                                    return;
+                                    listaLimpios.Add(soloNumeros);
                                 }
-
-                                formulaOpciones = string.Join(separador, listaLimpios);
                             }
+
+                            // 4. Validación de seguridad (Filtro anti-errores del usuario)
+                            if (listaLimpios.Count == 0)
+                            {
+                                MessageBox.Show(this, "No se encontraron valores numéricos en el rango seleccionado.\nNo se puede crear el catálogo.",
+                                                "Aviso Arquitectónico", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                chkCatalogos.Checked = false;
+                                return;
+                            }
+
+                            // 5. Construcción de la cadena final (Usando tu variable 'separador' original)
+                            formulaOpciones = string.Join(separador, listaLimpios);
                         }
                     }
 
@@ -915,12 +923,12 @@ namespace SAVCNG_ExcelDNA
                         // FASE 1: RECOPILACIÓN DE ESPACIOS DE TRABAJO (UX)
                         // =========================================================================
                         rangoCatalogo = (Excel.Range)xlApp.InputBox(
-                            "1. Selecciona las OPCIONES DEL CATÁLOGO.",
+                            "1. Selecciona las OPCIONES DEL CATÁLOGO.\nNOTA: Debera omitir de la selección las opciones 'Otro(Especifique)' y/o 'No identificado' del catálogo correspondiente. ",
                             "Mapeo de Catálogo", Type: 8);
                         if (rangoCatalogo == null) throw new Exception("Cancelado");
 
                         rangoMensaje = (Excel.Range)xlApp.InputBox(
-                            "2. Selecciona donde se mostrará el MENSAJE DE ALERTA amarillo.",
+                            "2. Selecciona el rango o celda donde se mostrará el MENSAJE DE ALERTA.",
                             "Destino de Alerta", Type: 8);
                         if (rangoMensaje == null) throw new Exception("Cancelado");
 
@@ -939,6 +947,10 @@ namespace SAVCNG_ExcelDNA
                         Excel.Range celdaLimpiaAzul = celdaMotor.Offset[0, 0];
                         string formulaLimpieza = $"=LOWER(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({dirAzulAbsoluta},\"á\",\"a\"),\"é\",\"e\"),\"í\",\"i\"),\"ó\",\"o\"),\"ú\",\"u\"))";
                         celdaLimpiaAzul.Formula = formulaLimpieza;
+                        // Pintamos el fondo de la celda de amarillo puro
+                        celdaLimpiaAzul.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
+                        //Poner el texto en negrita 
+                        celdaLimpiaAzul.Font.Bold = true;
                         string dirLimpiaAbsoluta = celdaLimpiaAzul.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
 
                         int filaMotor = 1; // Comenzamos a escribir debajo de la celda limpia
@@ -964,7 +976,7 @@ namespace SAVCNG_ExcelDNA
                                     .Replace("ó", "o").Replace("ú", "u");
 
                                 // 3. Dividimos por conectores lógicos para obtener palabras clave puras
-                                string[] separadores = { " y/o ", " y ", " o ", " e ", ",", "/" };
+                                string[] separadores = { " y/o ", " y ", " o ", " e ", ",", "/", " a ", " ante ", " bajo ", " cabe ", " con ", " contra ", " de ", " del ", " desde ", " durante ", " en ", " entre ", " hacia ", " hasta ", " mediante ", " para ", " por ", " según ", " sin ", " sobre ", " tras " };
                                 string[] palabrasClave = textoProcesado.Split(separadores, StringSplitOptions.RemoveEmptyEntries);
 
                                 // 4. Construimos la lógica nativa heredada (OR -> SEARCH)
