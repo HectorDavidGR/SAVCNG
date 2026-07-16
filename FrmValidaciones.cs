@@ -45,9 +45,8 @@ namespace SAVCNG_ExcelDNA
 
         }
 
-        // =========================================================================
         // --- INICIO DEL MÓDULO DE EXPERIENCIA DE USUARIO (UX) ---
-        // =========================================================================
+        // Mensajes emergentes para los botones check
         private void ConfigurarToolTips()
         {
             // 1. Instanciamos el componente nativo de WinForms de manera global para la ventana
@@ -61,7 +60,7 @@ namespace SAVCNG_ExcelDNA
 
             // 3. Diseño Estético de la ventana flotante
             toolTipValidaciones.ToolTipIcon = ToolTipIcon.Info; // Muestra un pequeño icono azul de "i"
-            toolTipValidaciones.ToolTipTitle = "Acción de la regla";
+            toolTipValidaciones.ToolTipTitle = "Descripción de la validación";
 
             // 4. Mapeo del Diccionario de Descripciones por CheckBox
             // Nota: Reemplaza "chkDecimales", "chkFechas", etc. si el nombre interno de tus controles difiere un poco.
@@ -73,32 +72,51 @@ namespace SAVCNG_ExcelDNA
                 "Bloquea celdas restrictivamente basándose en una condición lógica (Ej. 'Sí').\nPermite apilar reglas previas.");
 
             toolTipValidaciones.SetToolTip(this.chkCatalogos,
-                "Genera listas desplegables (Data Validation) a partir de celdas de origen o texto escrito manualmente.");
+                "Crea una lista de opciones predefinidas. Es ideal para campos de opción múltiple o catálogos, limitando lo que se puede escribir en la celda.");
 
             toolTipValidaciones.SetToolTip(this.chkDecimales,
-                "Aplica una validación restrictiva de números enteros (TRUNCAR).\nTolera inteligentemente los códigos 'NS' y 'NA'.");
+                "Asegura que solo se puedan escribir números enteros (sin punto decimal). Además, permite registrar los códigos 'NS' y 'NA'");
 
             toolTipValidaciones.SetToolTip(this.chkEspClave,
-                "Crea un diccionario auxiliar de búsqueda (SEARCH) que alerta en amarillo si el texto ya existe en el catálogo superior.");
+                "Ideal para los campos de 'Especifique'. Si el texto que el usuario intenta capturar ya estaba en el catálogo principal, te avisa en color amarillo para no duplicar información.");
 
             toolTipValidaciones.SetToolTip(this.chkFechas,
-                "Inyecta un límite de 4 dígitos para años, solicitando el rango válido a través de la interfaz. Permite código 'NS'.");
+                "Restringe la(s) celda(s) para aceptar solo números dentro de un rango que tú definas (ideal para días, meses o años). También acepta las claves 'NS' y 'NA'.");
 
             toolTipValidaciones.SetToolTip(this.chkFormatoTexto,
-                "Fuerza un formato estricto: Todo mayúsculas, sin espacios dobles, sin caracteres especiales.\n(Utiliza una columna auxiliar)");
+                "Ideal para preguntas abiertas como nombres o direcciones. Estandariza las respuestas transformando todo a mayúsculas y eliminando errores de datos como simbolos o dobles espacios.");
 
             toolTipValidaciones.SetToolTip(this.chkNS,
-                "Procesamiento por lotes (Batch) que rastrea los códigos 'NS' en múltiples preguntas simultáneas y detona una alerta amarilla centralizada.");
+                "Busca el código 'NS' en el(los) rango(s) establecido(s). Si lo encuentra, te avisa con una alerta en color amarillo para que puedas revisarlas.");
 
             toolTipValidaciones.SetToolTip(this.chkSumas,
                 "Motor de sumas cruzadas horizontales (FormatConditions) y generación de fórmulas automáticas (Σ) verticales.\nPermite apilamiento jerárquico multinivel.");
         }
-        // =========================================================================
-        // --- FIN DEL MÓDULO DE EXPERIENCIA DE USUARIO (UX) ---
-        // =========================================================================
+        // Evento para seleccionar exclusivamente 1 checkbox a la vez
+        private void CheckBox_Exclusivo_CheckedChanged(object sender, EventArgs e)
+        {
+            // 1. Identificamos qué CheckBox disparó el evento
+            CheckBox chkActivo = sender as CheckBox;
 
-        // --- Aquí irán los eventos de los botones en el siguiente paso ---
+            // 2. Si el CheckBox se está encendiendo, apagamos los demás
+            if (chkActivo != null && chkActivo.Checked)
+            {
+                // NOTA: Cambia "panelOpciones" por el nombre del GroupBox, Panel o TableLayoutPanel 
+                // donde tengas metidos tus 6 CheckBox.
+                foreach (Control ctrl in tLP_Paso2_chkboxes.Controls)
+                {
+                    // Si el control es un CheckBox y NO es el que acaban de presionar...
+                    if (ctrl is CheckBox && ctrl != chkActivo)
+                    {
+                        // Lo desmarcamos
+                        ((CheckBox)ctrl).Checked = false;
+                    }
+                }
+            }
+        }
 
+        // --- AQUÍ IRÁN LOS EVENTOS DE LOS BOTONES QUE SE USAN EN LA INTERFAZ ---
+        // Evento para caprturar el rango seleccionado en el excel mediante boton Capturar Rango
         private void btnCapturarRango_Click(object sender, EventArgs e)
         {
             try
@@ -148,7 +166,7 @@ namespace SAVCNG_ExcelDNA
 
                     // Mostramos un resumen claro en el MessageBox
                     MessageBox.Show(this,
-                        $"Se capturó correctamente la memoria de validación.\n\n" +
+                        $"Se capturó correctamente la selección.\n\n" +
                         $"• Coordenadas: {direccionLimpia}\n" +
                         $"• Bloques (Áreas): {_rangoCapturado.Areas.Count}\n" +
                         $"• Pregunta(s): {textoPreguntas}",
@@ -168,7 +186,7 @@ namespace SAVCNG_ExcelDNA
                                 "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
+        // Evento para aplicar validaciones mediante boton Aplicar Validación en pestaña de validaciones
         private void btnAplicar_Click(object sender, EventArgs e)
         {
             Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
@@ -178,16 +196,14 @@ namespace SAVCNG_ExcelDNA
 
             try
             {
-                // 1. Primero verificamos que el usuario no haya olvidado capturar un rango
+                // Primero verificamos que el usuario no haya olvidado capturar un rango
                 if (_rangoCapturado == null)
                 {
                     MessageBox.Show(this,"¡Espera! Primero debes capturar un rango.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     return; // Detenemos el código aquí
                 }
                 //=====================================================================================================
-                // --- INICIO DEL MÓDULO DE VALIDACIÓN DECIMALES ---
-                //=====================================================================================================
-                // 2. Verificamos si la casilla de "Decimales" está marcada
+                // --- VALIDACIÓN DECIMALES ---
                 if (chkDecimales.Checked == true)
                 {
                     try
@@ -221,21 +237,19 @@ namespace SAVCNG_ExcelDNA
 
                         // 5. Textos personalizados para el usuario final (UX)
                         _rangoCapturado.Validation.ErrorTitle = "Captura Inválida";
-                        _rangoCapturado.Validation.ErrorMessage = "El formato de esta celda no admite números con decimales ni texto libre.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o los códigos 'NS' o 'NA'.";
+                        _rangoCapturado.Validation.ErrorMessage = "El formato de esta celda solo admite numeros enteros, por lo que no debe agregar texto ni desagregar decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o los códigos 'NS' o 'NA'.";
 
                         // 6. Limpiamos la interfaz y avisamos del éxito
                         chkDecimales.Checked = false;
-                        MessageBox.Show(this, "Validación restrictiva de Enteros aplicada con éxito.\n\nEl motor ha sido blindado para tolerar los valores NS y NA de forma segura.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this, "Validación de formatos Decimales aplicada con éxito.\n\nLa validación considera los valores NS y NA de forma segura.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this, "Error crítico al aplicar Validación de Decimales: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, "Error crítico al aplicar Validación de Decimales: " + ex.Message, "Error de Inserción", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkDecimales.Checked = false;
                     }
                 }
-                //=====================================================================================================
-                // --- FIN DEL MÓDULO DE VALIDACIÓN DECIMALES ---
-                //=====================================================================================================
+                // --- VALIDACIÓN Catalogos ---
                 else if (chkCatalogos.Checked == true)
                 {
                     string formulaOpciones = "";
@@ -431,9 +445,7 @@ namespace SAVCNG_ExcelDNA
                         chkCatalogos.Checked = false;
                     }
                 }
-                //=====================================================================================================
-                // --- INICIO DEL MÓDULO DE VALIDACIÓN DE NS ---
-                //=====================================================================================================
+                // --- VALIDACIÓN NS ---
                 else if (chkNS.Checked == true)
                 {
                     Excel.Worksheet wsActual = null;
@@ -448,7 +460,7 @@ namespace SAVCNG_ExcelDNA
                         // =========================================================================
                         string textoSugerido = "Alerta: debido a que cuenta con registros NS, debe proporcionar una justificación en el área de comentarios al final de la pregunta";
                         object resTexto = xlApp.InputBox(
-                            "Escribe el texto del mensaje de alerta que se aplicará a todas las áreas detectadas:",
+                            "Escribe el texto del mensaje de alerta que se aplicará a todas las celdas seleccionadas:",
                             "SAVCNG - Configuración Masiva NS (Permitiendo NA)", textoSugerido, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
 
                         if (resTexto is bool && (bool)resTexto == false) { chkNS.Checked = false; return; }
@@ -494,7 +506,9 @@ namespace SAVCNG_ExcelDNA
                                     // 1. UX Mapeo Dirigido UNO A UNO: Indicamos al usuario qué bloque está configurando
                                     object resDestino = xlApp.InputBox(
                                         $"[PREGUNTA DETECTADA: {preguntaActual}] - Rango {j + 1} de {listaÁreas.Count}\n\n" +
-                                        $"Selecciona la celda o rango destino donde aparecerá el mensaje amarillo exclusivo para ESTE bloque de celdas:",
+                                        $"Selecciona la celda o rango destino donde aparecerá el mensaje de ALERTA:\n" +
+                                        $"(Selección Estandar para mensajes: Columna B hasta AD)",
+
                                         $"SAVCNG - Alerta P.{preguntaActual} (Área {j + 1})", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
 
                                     // Si cancela este bloque, saltamos al siguiente
@@ -575,9 +589,7 @@ namespace SAVCNG_ExcelDNA
                         if (wsActual != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsActual);
                     }
                 }
-                //=====================================================================================================
-                // --- FIN DEL MÓDULO DE VALIDACIÓN DE NS ---
-                //=====================================================================================================
+                // --- VALIDACIÓN FORMATO TEXTO ---
                 else if (chkFormatoTexto.Checked == true)
                 {
                     try
@@ -591,8 +603,8 @@ namespace SAVCNG_ExcelDNA
 
                         // --- NUEVO PASO: SOLICITAR LA UBICACIÓN DEL ESPEJO ---
                         object resAuxiliar = excelApp.InputBox(
-                            "Selecciona la COLUMNA o CELDA donde deseas ocultar la validación matemática:\n\n(Ej. Selecciona CW1 o cualquier celda en una columna vacía a la derecha de tu formato).",
-                            "Ubicación del Rango Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+                            "Indica en qué columna libre deseas colocar la validación oculta (AF en adelante).\n\nConsidera que el sistema requerirá espacio libre hacia abajo proporcional al número de filas que seleccionaste originalmente.",
+                            "Seleccion de formula Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
 
                         if (resAuxiliar is bool && (bool)resAuxiliar == false) { chkFormatoTexto.Checked = false; return; }
 
@@ -656,10 +668,10 @@ namespace SAVCNG_ExcelDNA
                             _rangoCapturado.Validation.ShowError = true;
 
                             _rangoCapturado.Validation.ErrorTitle = "Formato de texto inválido";
-                            _rangoCapturado.Validation.ErrorMessage = "El texto capturado debe cumplir estrictamente las siguientes reglas:\n\n" +
-                                                                      "• Todo en MAYÚSCULAS.\n" +
-                                                                      "• Sin dobles espacios ni espacios a las orillas.\n" +
-                                                                      "• SOLO LETRAS (incluye Ñ y acentos) Y NÚMEROS. No se permiten caracteres especiales.";
+                            _rangoCapturado.Validation.ErrorMessage = "El texto debe cumplir estas reglas:\n\n" +
+                                                                      "• Solo se permite texto en MAYÚSCULAS y NÚMEROS.\n" +
+                                                                      "• Sin espacios dobles o sobrantes.\n" +
+                                                                      "• Sin comillas ni signos de puntuación, paréntesis ni caracteres especiales.";
                         }
                         catch (System.Runtime.InteropServices.COMException)
                         {
@@ -675,7 +687,11 @@ namespace SAVCNG_ExcelDNA
                         }
 
                         chkFormatoTexto.Checked = false;
-                        MessageBox.Show(this,$"Validación restrictiva aplicada con éxito.\n\nEl motor auxiliar fue alojado en la columna {colAuxLetra}.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,
+                        $"Validación de formato de texto aplicada con éxito.\n\nNota: La fórmula de apoyo se colocó en la columna {colAuxLetra}.",
+                        "Formato de texto",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
@@ -683,6 +699,7 @@ namespace SAVCNG_ExcelDNA
                         chkFormatoTexto.Checked = false;
                     }
                 }
+                // --- VALIDACIÓN BLOQUEOS ---
                 else if (chkBloqueo.Checked == true)
                 {
                     try
@@ -882,6 +899,7 @@ namespace SAVCNG_ExcelDNA
                         chkBloqueo.Checked = false;
                     }
                 }
+                // --- VALIDACIÓN BLANCOS ---
                 else if (chkBlancos.Checked == true)
                 {
                     try
@@ -989,6 +1007,7 @@ namespace SAVCNG_ExcelDNA
                         chkBlancos.Checked = false;
                     }
                 }
+                // --- VALIDACIÓN ESPECIFIQUES (PALABRAS CLAVE) ---
                 else if (chkEspClave.Checked == true)
                 {
                     if (_libroCenso == null || _rangoCapturado == null)
@@ -1158,11 +1177,7 @@ namespace SAVCNG_ExcelDNA
                         if (celdaMotor != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaMotor);
                     }
                 }
-
-                //=====================================================================================================
-                // --- INICIO DEL NUEVO CÓDIGO PARA AÑOS ---
-                //=====================================================================================================
-                // UBICACIÓN: FrmValidaciones.cs - Dentro del evento btnAplicar_Click
+                // --- VALIDACIÓN FECHAS ---
                 else if (chkFechas.Checked == true)
                 {
                     Excel.Validation objValidacion = null;
@@ -1173,9 +1188,9 @@ namespace SAVCNG_ExcelDNA
                         // 1. CAPTURA DINÁMICA: Solicitar límite inferior usando InputBox nativo de Excel
                         // El "2" al final indica que esperamos que devuelva texto
                         object resultadoInferior = excelApp.InputBox(
-                            "Ingrese el año que servirá como LÍMITE INFERIOR (ej. 1821):",
-                            "SAVCNG - Parámetro de Control",
-                            "1821", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
+                            "Indica el valor MÍNIMO aceptado para esta validación:\n\n(Ej. 1 para días/meses, o 1821 para años).",
+                            "Límite Inferior",
+                            "1", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
                         // Si el usuario presiona "Cancelar", excelApp devuelve un booleano (false)
                         if (resultadoInferior is bool && (bool)resultadoInferior == false) { chkFechas.Checked = false; return; }
@@ -1185,8 +1200,8 @@ namespace SAVCNG_ExcelDNA
 
                         // 2. CAPTURA DINÁMICA: Solicitar límite superior
                         object resultadoSuperior = excelApp.InputBox(
-                            "Ingrese el año que servirá como LÍMITE SUPERIOR (ej. 2026):",
-                            "SAVCNG - Parámetro de Control",
+                            "Indica el valor MÁXIMO aceptado para esta validación:\n\n(Ej. 31 para días, 12 para meses, o 2026 para años).",
+                            "Límite Superior",
                             "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
                         if (resultadoSuperior is bool && (bool)resultadoSuperior == false) { chkFechas.Checked = false; return; }
@@ -1197,14 +1212,22 @@ namespace SAVCNG_ExcelDNA
                         // 3. VALIDACIÓN DE ENTRADAS: Asegurar consistencia numérica
                         if (!int.TryParse(inputInferior, out int limiteInferior) || !int.TryParse(inputSuperior, out int limiteSuperior))
                         {
-                            MessageBox.Show(this,"Los límites ingresados deben ser números enteros válidos de 4 dígitos.", "Error de Parámetros", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show(this,
+                                "Por favor, asegúrate de escribir únicamente números enteros.\n\nNo se permiten letras, decimales, ni dejar el espacio en blanco.",
+                                "Solo números permitidos",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
                             chkFechas.Checked = false;
                             return;
                         }
 
                         if (limiteInferior > limiteSuperior)
                         {
-                            MessageBox.Show(this,"Error Lógico: El límite inferior no puede ser mayor que el límite superior.", "Error de Rango", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBox.Show(this,
+                                $"Revisa los valores que ingresaste:\n\nEl límite mínimo ({limiteInferior}) no puede ser mayor que el límite máximo ({limiteSuperior}).",
+                                "Límites invertidos",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
                             chkFechas.Checked = false;
                             return;
                         }
@@ -1220,8 +1243,8 @@ namespace SAVCNG_ExcelDNA
                         celdaInicial = (Excel.Range)_rangoCapturado.Cells[1, 1];
                         string direccionRelativa = celdaInicial.get_Address(false, false, Excel.XlReferenceStyle.xlA1, Type.Missing, Type.Missing);
 
-                        // 7. Fórmula Localizada con límites dinámicos e inyección de la variable 'separador'
-                        string formulaValidacion = $"=O(ESPACIOS({direccionRelativa})=\"NS\"{separador}Y(ESNUMERO({direccionRelativa}){separador}{direccionRelativa}>={limiteInferior}{separador}{direccionRelativa}<={limiteSuperior}))";
+                        // 7. Fórmula Localizada con límites dinámicos (acepta NS y NA)
+                        string formulaValidacion = $"=O(ESPACIOS({direccionRelativa})=\"NS\"{separador}ESPACIOS({direccionRelativa})=\"NA\"{separador}Y(ESNUMERO({direccionRelativa}){separador}{direccionRelativa}>={limiteInferior}{separador}{direccionRelativa}<={limiteSuperior}))";
 
                         // 8. Inyección del motor de reglas personalizado
                         objValidacion.Add(
@@ -1232,15 +1255,19 @@ namespace SAVCNG_ExcelDNA
                             Type.Missing
                         );
 
-                        // 9. Configuración de UX: El mensaje de error ahora describe dinámicamente el rango elegido
+                        // 9. Configuración de UX: Mensaje de error dinámico e incluyente (NS/NA)
                         objValidacion.IgnoreBlank = true;
                         objValidacion.ShowError = true;
-                        objValidacion.ErrorTitle = "Validación de Consistencia";
-                        objValidacion.ErrorMessage = $"El valor ingresado debe ser un año válido de 4 dígitos entre {limiteInferior} y {limiteSuperior}, o el código 'NS'.";
+                        objValidacion.ErrorTitle = "Valor fuera de rango";
+                        objValidacion.ErrorMessage = $"El número debe estar entre {limiteInferior} y {limiteSuperior}.\n\nTambién puedes usar las claves válidas 'NS' o 'NA'.";
 
                         // 10. Limpiamos interfaz y notificamos el éxito
                         chkFechas.Checked = false;
-                        MessageBox.Show(this,$"Validación de Años ({limiteInferior} a {limiteSuperior} o 'NS') aplicada correctamente al rango.", "SAVCNG - Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show(this,
+                            $"Validación de rango aplicada con éxito.\n\nLas celdas ahora solo aceptarán números del {limiteInferior} al {limiteSuperior} (o claves NS/NA).",
+                            "Validación completada",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
                     }
                     catch (System.Runtime.InteropServices.COMException comEx)
                     {
@@ -1262,9 +1289,7 @@ namespace SAVCNG_ExcelDNA
                         excelApp.ScreenUpdating = true;
                     }
                 }
-                //=====================================================================================================
-                // --- INICIO DEL MÓDULO DE VALIDACIÓN DE SUMAS CRUZADAS Y VERTICALES ---
-                //=====================================================================================================
+                // --- VALIDACIÓN SUMAS ---
                 else if (chkSumas.Checked == true)
                 {
                     Excel.Range rangoTotal = null;
@@ -1417,17 +1442,13 @@ namespace SAVCNG_ExcelDNA
                         if (rangoTotalesVerticales != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoTotalesVerticales);
                     }
                 }
-                //=====================================================================================================
-                // --- FIN DEL MÓDULO DE VALIDACIÓN DE SUMAS ---
-                //=====================================================================================================
-
+                
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this,"Ocurrió un error al aplicar el formato: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         // Función para detectar el número de pregunta en la columna A (Como en tu App_Form_Interface)
         private string ObtenerNumeroPregunta(Excel.Range rango)
         {
