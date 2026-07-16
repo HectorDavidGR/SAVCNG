@@ -317,7 +317,7 @@
             this.chkCatalogos.Text = "Catálogos";
             this.chkCatalogos.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkCatalogos.UseVisualStyleBackColor = true;
-            this.chkCatalogos.CheckedChanged += new System.EventHandler(this.chkCatalogos_CheckedChanged);
+            this.chkCatalogos.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkDecimales
             // 
@@ -331,6 +331,7 @@
             this.chkDecimales.Text = "Decimales (Enteros)";
             this.chkDecimales.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkDecimales.UseVisualStyleBackColor = true;
+            this.chkDecimales.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkEspClave
             // 
@@ -344,6 +345,7 @@
             this.chkEspClave.Text = "Especifique (Claves)";
             this.chkEspClave.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkEspClave.UseVisualStyleBackColor = false;
+            this.chkEspClave.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkFechas
             // 
@@ -357,7 +359,7 @@
             this.chkFechas.Text = "Fechas";
             this.chkFechas.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkFechas.UseVisualStyleBackColor = true;
-            this.chkFechas.CheckedChanged += new System.EventHandler(this.chkFechas_CheckedChanged);
+            this.chkFechas.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkFormatoTexto
             // 
@@ -371,6 +373,7 @@
             this.chkFormatoTexto.Text = "Formato Texto";
             this.chkFormatoTexto.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkFormatoTexto.UseVisualStyleBackColor = true;
+            this.chkFormatoTexto.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkNS
             // 
@@ -384,7 +387,7 @@
             this.chkNS.Text = "NS";
             this.chkNS.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkNS.UseVisualStyleBackColor = true;
-            this.chkNS.CheckedChanged += new System.EventHandler(this.chkNS_CheckedChanged);
+            this.chkNS.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkSumas
             // 
