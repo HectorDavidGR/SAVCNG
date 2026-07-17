@@ -214,83 +214,154 @@ namespace SAVCNG_ExcelDNA
                 // --- VALIDACIÓN DECIMALES ---
                 else if (chkDecimales.Checked == true)
                 {
+                    Excel.Worksheet wsActual = null;
+
                     try
                     {
-                        // ==========================================================
-                        // PREVENCIÓN DE SOBRESCRITURA DE VALIDACIÓN
-                        // ==========================================================
+                        excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+                        wsActual = (Excel.Worksheet)_rangoCapturado.Worksheet;
+
+                        // =========================================================================
+                        // FASE 1: AUDITORÍA DE COEXISTENCIA (DETECCIÓN DE REGLAS PREVIAS)
+                        // =========================================================================
+                        bool tieneFormatosPrevios = _rangoCapturado.FormatConditions.Count > 0;
                         bool tieneValidacionPrevia = false;
-                        try
-                        {
-                            // Revisamos si la primera celda ya tiene alguna regla
-                            Excel.Range primeraCeldaRango = (Excel.Range)_rangoCapturado.Cells[1, 1];
-                            int tipoValidacion = primeraCeldaRango.Validation.Type;
-                            tieneValidacionPrevia = true;
-                        }
-                        catch
-                        {
-                            // Si cae aquí, la celda está limpia
-                            tieneValidacionPrevia = false;
-                        }
 
-                        if (tieneValidacionPrevia)
-                        {
-                            DialogResult sobrescribir = MessageBox.Show(this,
-                                "Las celdas que seleccionaste ya tienen una validacion de datos o lista desplegable asignada.\n\n" +
-                                "¿Estás seguro de que deseas borrarla y aplicar esta validación de números enteros en su lugar?",
-                                "Validación existente detectada",
-                                MessageBoxButtons.YesNo,
-                                MessageBoxIcon.Warning);
+                        try { var tipo = _rangoCapturado.Validation.Type; tieneValidacionPrevia = true; } catch { /* Silenciado: No hay DataValidation previa */ }
 
-                            if (sobrescribir == DialogResult.No)
+                        bool limpiarFormatos = false;
+
+                        if (tieneFormatosPrevios || tieneValidacionPrevia)
+                        {
+                            DialogResult respLimpieza = MessageBox.Show(this,
+                                "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
+                                "NOTA: Al ser una restricción de captura estricta, la regla de celdas se sobreescribirá, pero...\n\n" +
+                                "¿Deseas CONSERVAR los colores, alertas o bloqueos (Formatos Condicionales) aplicados previamente?\n\n" +
+                                "SÍ = MANTENER colores/bloqueos anteriores.\n" +
+                                "NO = BORRAR todo el historial y limpiar el lienzo.",
+                                "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
+                            if (respLimpieza == DialogResult.Cancel)
                             {
                                 chkDecimales.Checked = false;
-                                return; // Abortamos limpiamente sin tocar su Excel
+                                return; // Abortamos limpiamente
+                            }
+
+                            if (respLimpieza == DialogResult.No)
+                            {
+                                limpiarFormatos = true;
                             }
                         }
 
-                        // ==========================================================
-                        // 1. Limpiamos validaciones previas para no empalmar reglas
-                        _rangoCapturado.Validation.Delete();
+                        // =========================================================================
+                        // FASE 1.5: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
+                        // =========================================================================
+                        System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
 
-                        // 2. Extraemos la dirección de la primera celda sin anclas (Ejemplo: A1)
-                        Excel.Range primeraCelda = (Excel.Range)_rangoCapturado.Cells[1, 1];
-                        string direccion = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+                        for (int i = 1; i <= _rangoCapturado.Areas.Count; i++)
+                        {
+                            Excel.Range areaIndividual = (Excel.Range)_rangoCapturado.Areas[i];
+                            string idPregunta = ObtenerNumeroPregunta(areaIndividual);
 
-                        // ==========================================================
-                        // FÓRMULA LOCAL (ESPAÑOL) BLINDADA CON SI.ERROR
-                        // ==========================================================
-                        string formulaDecimales = $"=O(ESBLANCO({direccion}){separador}SI.ERROR(Y(ESNUMERO({direccion}){separador}TRUNCAR({direccion})={direccion}){separador}FALSO){separador}{direccion}=\"NS\"{separador}{direccion}=\"NA\")";
+                            if (!string.IsNullOrEmpty(idPregunta))
+                            {
+                                preguntasUnicas.Add(idPregunta);
+                            }
 
-                        // 3. Aplicamos la regla restrictiva (Data Validation)
-                        _rangoCapturado.Validation.Add(
-                            Excel.XlDVType.xlValidateCustom,
-                            Excel.XlDVAlertStyle.xlValidAlertStop,
-                            Excel.XlFormatConditionOperator.xlBetween,
-                            formulaDecimales,
-                            Type.Missing);
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(areaIndividual);
+                        }
 
-                        // 4. Configuramos el comportamiento de la ventana emergente
-                        _rangoCapturado.Validation.IgnoreBlank = true;
-                        _rangoCapturado.Validation.ShowError = true;
+                        // Apagamos la actualización de pantalla para un inyectado masivo rápido y silencioso
+                        excelApp.ScreenUpdating = false;
 
-                        // 5. Textos personalizados para el usuario final (UX)
-                        _rangoCapturado.Validation.ErrorTitle = "Solo números enteros";
-                        _rangoCapturado.Validation.ErrorMessage = "El formato de esta celda no admite texto ni decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o las claves de omisión 'NS' y 'NA'.";
+                        // =========================================================================
+                        // FASE 2: PROCESAMIENTO MASIVO POR ÁREAS Y TRADUCCIÓN UNIVERSAL
+                        // =========================================================================
+                        foreach (Excel.Range area in _rangoCapturado.Areas)
+                        {
+                            Excel.Range primeraCelda = null;
+                            Excel.Range celdaDummy = null;
 
-                        // 6. Limpiamos la interfaz y avisamos del éxito
+                            try
+                            {
+                                // Limpieza obligatoria de validaciones anteriores (No se empalman)
+                                area.Validation.Delete();
+
+                                // Limpieza opcional de formatos visuales
+                                if (limpiarFormatos) { area.FormatConditions.Delete(); }
+
+                                primeraCelda = (Excel.Range)area.Cells[1, 1];
+                                string direccionRelativa = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                                // ---------------------------------------------------------------------
+                                // INGENIERÍA DE FÓRMULA UNIVERSAL (INGLÉS Y CORTOCIRCUITO)
+                                // ---------------------------------------------------------------------
+                                string formulaIngles = $"=IF(ISNUMBER({direccionRelativa}), TRUNC({direccionRelativa})={direccionRelativa}, OR(TRIM({direccionRelativa})=\"NS\", TRIM({direccionRelativa})=\"NA\"))";
+
+                                // Truco Arquitectónico de Traducción Nativa
+                                int filaBaseArea = area.Row;
+                                celdaDummy = (Excel.Range)wsActual.Cells[filaBaseArea, 16384]; // Columna XFD
+                                celdaDummy.Formula = formulaIngles;
+                                string formulaLocal = celdaDummy.FormulaLocal; // Extraemos la versión traducida con el separador correcto de la PC
+                                celdaDummy.Clear();
+
+                                // ---------------------------------------------------------------------
+                                // INYECCIÓN DE LA REGLA
+                                // ---------------------------------------------------------------------
+                                area.Validation.Add(
+                                    Excel.XlDVType.xlValidateCustom,
+                                    Excel.XlDVAlertStyle.xlValidAlertStop,
+                                    Excel.XlFormatConditionOperator.xlBetween,
+                                    formulaLocal,
+                                    Type.Missing);
+
+                                area.Validation.IgnoreBlank = true;
+                                area.Validation.ShowError = true;
+                                area.Validation.ErrorTitle = "Solo números enteros";
+                                area.Validation.ErrorMessage = "El formato de esta celda no admite texto ni decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o las claves de omisión 'NS' y 'NA'.";
+                            }
+                            finally
+                            {
+                                // Prevención estricta de Fugas de Memoria COM en cada ciclo
+                                if (primeraCelda != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCelda);
+                                if (celdaDummy != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                            }
+                        }
+
+                        // =========================================================================
+                        // FASE 3: CONCLUSIÓN Y REGISTRO EN BITÁCORA
+                        // =========================================================================
                         chkDecimales.Checked = false;
+                        string estadoAuditoria = limpiarFormatos ? "Se borraron configuraciones visuales previas." : "Se conservaron colores y bloqueos anteriores.";
+
+                        // Extracción segura del HashSet
+                        string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
+
+                        AuditoriaCenso.RegistrarAccion(
+                            _libroCenso,
+                            preguntasDetectadas,
+                            "Decimales", // Etiqueta corregida
+                            _rangoCapturado.Address.Replace("$", ""),
+                            "Data Validation"
+                        );
 
                         MessageBox.Show(this,
-                            "Validación de números enteros aplicada con éxito.\n\nLas celdas ahora bloquean los decimales y aceptan las claves NS/NA.",
-                            "Regla aplicada",
+                            $"Validación de números enteros aplicada con éxito en {_rangoCapturado.Areas.Count} bloque(s).\n\n" +
+                            $"• Auditoría: {estadoAuditoria}\n" +
+                            $"• Regla: Las celdas bloquean los decimales y aceptan las claves NS/NA.",
+                            "SAVCNG - Validación Completada",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this, "Error crítico al aplicar la validación: " + ex.Message, "Error de Inserción", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, "Error crítico al aplicar la validación: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkDecimales.Checked = false;
+                    }
+                    finally
+                    {
+                        if (wsActual != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsActual);
+                        if (excelApp != null) excelApp.ScreenUpdating = true; // Restaurar renderizado visual
                     }
                 }
                 // --- VALIDACIÓN Catalogos ---
@@ -365,19 +436,19 @@ namespace SAVCNG_ExcelDNA
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question);
 
-                            // 2. Manejo de la cancelación estricta (Abortar operación limpiamente)
                             if (respuesta == DialogResult.Cancel)
                             {
-                                // Interrumpimos el flujo, quitamos el check y salimos del método
                                 chkCatalogos.Checked = false;
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoOrigen);
                                 return;
                             }
 
-                            // 3. Lógica de "Aceptar" (Extracción de texto del objeto COM)
                             Excel.Range primeraCeldaOrigen = (Excel.Range)rangoOrigen.Cells[1, 1];
                             string textoCelda = primeraCeldaOrigen.Text?.ToString() ?? "";
 
-                            // 4. Validación de seguridad (Prevenir errores de referencia nula)
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCeldaOrigen);
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoOrigen);
+
                             if (string.IsNullOrWhiteSpace(textoCelda))
                             {
                                 MessageBox.Show(this, "La celda origen está vacía. No se puede extraer el catálogo.",
@@ -386,34 +457,27 @@ namespace SAVCNG_ExcelDNA
                                 return;
                             }
 
-                            // 5. Motor de separación y limpieza (Extraer únicamente los números)
                             string[] pedacitos = textoCelda.Split(new char[] { '.', ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
                             System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
 
                             foreach (string pedazo in pedacitos)
                             {
                                 string soloNumeros = "";
-
-                                // Iteramos por cada carácter buscando dígitos
                                 foreach (char letra in pedazo)
                                 {
                                     if (char.IsDigit(letra)) soloNumeros += letra;
                                 }
-
-                                // Solo lo agregamos si realmente encontró un número
                                 if (!string.IsNullOrEmpty(soloNumeros))
                                 {
                                     listaLimpios.Add(soloNumeros);
                                 }
                             }
 
-                            // 6. Construcción de la cadena final nativa
                             string separadorSistema = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
                             formulaOpciones = string.Join(separadorSistema, listaLimpios);
                         }
                         else
                         {
-                            // 1. Simplificación de UX: Pregunta directa y coherente con el paso anterior
                             DialogResult respuestaRango = MessageBox.Show(this,
                                 "Se han detectado varias celdas seleccionadas como catálogo.\n" +
                                 "¿Deseas que el sistema extraiga automáticamente SOLO LOS NÚMEROS (ej. 1, 2, 9) de cada celda para crear las opciones?\n\n" +
@@ -423,14 +487,13 @@ namespace SAVCNG_ExcelDNA
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question);
 
-                            // 2. Manejo de la cancelación estricta (Abortar operación limpiamente)
                             if (respuestaRango == DialogResult.Cancel)
                             {
                                 chkCatalogos.Checked = false;
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoOrigen);
                                 return;
                             }
 
-                            // 3. Lógica de extracción de "Aceptar" (Solo iteración de números)
                             System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
 
                             foreach (Excel.Range celda in rangoOrigen.Cells)
@@ -438,20 +501,20 @@ namespace SAVCNG_ExcelDNA
                                 string textoCelda = celda.Text?.ToString() ?? "";
                                 string soloNumeros = "";
 
-                                // Escaneamos la cadena carácter por carácter buscando dígitos
                                 foreach (char letra in textoCelda)
                                 {
                                     if (char.IsDigit(letra)) soloNumeros += letra;
                                 }
 
-                                // Si la celda tenía números, la agregamos a la lista limpia
                                 if (!string.IsNullOrEmpty(soloNumeros))
                                 {
                                     listaLimpios.Add(soloNumeros);
                                 }
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(celda);
                             }
 
-                            // 4. Validación de seguridad (Filtro anti-errores del usuario)
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoOrigen);
+
                             if (listaLimpios.Count == 0)
                             {
                                 MessageBox.Show(this, "No se encontraron valores numéricos en el rango seleccionado.\nNo se puede crear el catálogo.",
@@ -460,32 +523,34 @@ namespace SAVCNG_ExcelDNA
                                 return;
                             }
 
-                            // 5. Construcción de la cadena final (Usando tu variable 'separador' original)
                             formulaOpciones = string.Join(separador, listaLimpios);
                         }
                     }
 
                     // ==========================================================
-                    // NUEVO PASO: PREVENCIÓN DE SOBRESCRITURA DE VALIDACIÓN
+                    // PREVENCIÓN DE SOBRESCRITURA DE VALIDACIÓN
                     // ==========================================================
                     bool tieneValidacionPrevia = false;
+                    Excel.Range primeraCeldaRango = null;
+
                     try
                     {
-                        // Revisamos la primera celda del rango capturado.
-                        // Si no tiene validación, Excel lanzará una excepción silenciosa.
-                        Excel.Range primeraCeldaRango = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        primeraCeldaRango = (Excel.Range)_rangoCapturado.Cells[1, 1];
                         int tipoValidacion = primeraCeldaRango.Validation.Type;
-                        tieneValidacionPrevia = true; // Si llega aquí, sí hay validación
+                        tieneValidacionPrevia = true;
                     }
                     catch
                     {
-                        // Si cae aquí, la celda está limpia. No hacemos nada.
                         tieneValidacionPrevia = false;
+                    }
+                    finally
+                    {
+                        // Liberamos memoria para evitar Excel fantasma
+                        if (primeraCeldaRango != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCeldaRango);
                     }
 
                     if (tieneValidacionPrevia)
                     {
-                        // Interfaz conversacional y amigable para el usuario
                         DialogResult sobrescribir = MessageBox.Show(this,
                             "Las celdas que seleccionaste ya tienen una validación de datos o lista desplegable asignada.\n\n" +
                             "¿Estás seguro de que deseas borrarla y aplicar este nuevo catálogo en su lugar?",
@@ -496,11 +561,33 @@ namespace SAVCNG_ExcelDNA
                         if (sobrescribir == DialogResult.No)
                         {
                             chkCatalogos.Checked = false;
-                            return; // Abortamos la operación sin tocar su Excel
+                            return;
                         }
                     }
 
-                    // 3. APLICAR LA VALIDACIÓN (Tu lógica original intacta)
+                    // =========================================================================
+                    // NUEVO PASO: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
+                    // =========================================================================
+                    System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+
+                    for (int i = 1; i <= _rangoCapturado.Areas.Count; i++)
+                    {
+                        Excel.Range areaIndividual = (Excel.Range)_rangoCapturado.Areas[i];
+                        string idPregunta = ObtenerNumeroPregunta(areaIndividual);
+
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
+
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(areaIndividual);
+                    }
+
+                    string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
+
+                    // ==========================================================
+                    // 3. APLICAR LA VALIDACIÓN Y REGISTRO EN BITÁCORA
+                    // ==========================================================
                     try
                     {
                         _rangoCapturado.Validation.Delete();
@@ -516,11 +603,21 @@ namespace SAVCNG_ExcelDNA
                         _rangoCapturado.Validation.IgnoreBlank = true;
 
                         chkCatalogos.Checked = false;
-                        MessageBox.Show(this,"¡Validación de catálogo aplicada con éxito!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        // Registro de Auditoría con la etiqueta correcta
+                        AuditoriaCenso.RegistrarAccion(
+                            _libroCenso,
+                            preguntasDetectadas,
+                            "Catálogo (Lista Desplegable)",
+                            _rangoCapturado.Address.Replace("$", ""),
+                            "Data Validation"
+                        );
+
+                        MessageBox.Show(this, "¡Validación de catálogo aplicada con éxito!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this,"Error al aplicar la validación: " + ex.Message + "\n\nTexto que se intentó usar: " + formulaOpciones, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, "Error al aplicar la validación: " + ex.Message + "\n\nTexto que se intentó usar: " + formulaOpciones, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkCatalogos.Checked = false;
                     }
                 }
@@ -774,7 +871,8 @@ namespace SAVCNG_ExcelDNA
                             _libroCenso,
                             preguntasDetectadas, // Enviamos "1.1, 1.2" en lugar del texto fijo "Múltiples"
                             "Validación NS",
-                            _rangoCapturado.Address.Replace("$", "") // UX: Quitamos los $ para que se lea mejor en el DataGrid
+                            _rangoCapturado.Address.Replace("$", ""), // UX: Quitamos los $ para que se lea mejor en el DataGrid
+                            "Fórmulas" // NUEVO: Agregamos la funcionalidad Excel
                         );
 
                         MessageBox.Show(this,
@@ -957,7 +1055,8 @@ namespace SAVCNG_ExcelDNA
                             _libroCenso,
                             preguntasDetectadas,
                             "Formato de Texto (Alfanumérico)", // Etiqueta corregida para este módulo
-                            _rangoCapturado.Address.Replace("$", "")
+                            _rangoCapturado.Address.Replace("$", ""),
+                            "Data Validation"
                         );
 
                         MessageBox.Show(this,
@@ -1290,37 +1389,75 @@ namespace SAVCNG_ExcelDNA
                 {
                     if (_libroCenso == null || _rangoCapturado == null)
                     {
-                        MessageBox.Show(this,"Operación denegada: Captura la celda destino (Especifique) primero.",
+                        MessageBox.Show(this, "Operación denegada: Captura la celda destino (Especifique) primero.",
                                         "Arquitectura SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         chkEspClave.Checked = false;
                         return;
                     }
 
-                    Excel.Application xlApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
-                    Excel.Worksheet ws = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                    Excel.Application xlApp = null;
+                    Excel.Worksheet ws = null;
                     Excel.Range rangoCatalogo = null;
                     Excel.Range rangoMensaje = null;
                     Excel.Range celdaMotor = null;
 
                     try
                     {
-                        // =========================================================================
-                        // FASE 1: RECOPILACIÓN DE ESPACIOS DE TRABAJO (UX)
-                        // =========================================================================
-                        rangoCatalogo = (Excel.Range)xlApp.InputBox(
-                            "1. Selecciona las OPCIONES DEL CATÁLOGO.\nNOTA: Debera omitir de la selección las opciones 'Otro(Especifique)' y/o 'No identificado' del catálogo correspondiente. ",
-                            "Mapeo de Catálogo", Type: 8);
-                        if (rangoCatalogo == null) throw new Exception("Cancelado");
+                        xlApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+                        ws = (Excel.Worksheet)_rangoCapturado.Worksheet;
 
-                        rangoMensaje = (Excel.Range)xlApp.InputBox(
+                        // =========================================================================
+                        // FASE 1: RECOPILACIÓN DE ESPACIOS DE TRABAJO (UX BLINDADA)
+                        // =========================================================================
+                        object resCatalogo = xlApp.InputBox(
+                            "1. Selecciona las OPCIONES DEL CATÁLOGO.\nNOTA: Deberás omitir de la selección las opciones 'Otro(Especifique)' y/o 'No identificado'.",
+                            "Mapeo de Catálogo", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                        if (resCatalogo is bool && (bool)resCatalogo == false) { chkEspClave.Checked = false; return; }
+                        rangoCatalogo = (Excel.Range)resCatalogo;
+
+                        object resMensaje = xlApp.InputBox(
                             "2. Selecciona el rango o celda donde se mostrará el MENSAJE DE ALERTA.",
-                            "Destino de Alerta", Type: 8);
-                        if (rangoMensaje == null) throw new Exception("Cancelado");
+                            "Destino de Alerta", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                        if (resMensaje is bool && (bool)resMensaje == false) { chkEspClave.Checked = false; return; }
+                        rangoMensaje = (Excel.Range)resMensaje;
 
-                        celdaMotor = (Excel.Range)xlApp.InputBox(
-                            "3. Selecciona UNA CELDA VACÍA (columna AF en adelante) para construir el Diccionario Auxiliar de Busqueda.\nADVERTENCIA: Considere un espacio libre de dos columnas por N filas. (N = numero de opciones del catalogo)",
-                            "Generación del Motor Oculto", Type: 8);
-                        if (celdaMotor == null) throw new Exception("Cancelado");
+                        object resMotor = xlApp.InputBox(
+                            "3. Selecciona UNA CELDA VACÍA (columna AF en adelante) para construir el Diccionario Auxiliar.\nADVERTENCIA: Considere un espacio libre de dos columnas hacia abajo.",
+                            "Generación del Motor Oculto", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                        if (resMotor is bool && (bool)resMotor == false) { chkEspClave.Checked = false; return; }
+                        celdaMotor = (Excel.Range)resMotor;
+
+                        // =========================================================================
+                        // FASE 1.5: AUDITORÍA DE COEXISTENCIA Y STATE MANAGEMENT
+                        // =========================================================================
+                        // A) Auditoría de Coexistencia (Enfocada en el Catálogo)
+                        bool limpiarFormatos = false;
+                        if (rangoCatalogo.FormatConditions.Count > 0)
+                        {
+                            DialogResult respLimpieza = MessageBox.Show(this,
+                                "Se detectaron formatos condicionales (colores/alertas) previos en el CATÁLOGO seleccionado.\n\n" +
+                                "¿Deseas CONSERVAR los colores anteriores además del resaltado amarillo de esta búsqueda?\n\n" +
+                                "SÍ = MANTENER colores/bloqueos anteriores.\n" +
+                                "NO = BORRAR todo el historial y limpiar el lienzo.",
+                                "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
+                            if (respLimpieza == DialogResult.Cancel) { chkEspClave.Checked = false; return; }
+                            if (respLimpieza == DialogResult.No) { limpiarFormatos = true; }
+                        }
+
+                        // B) Recolección Ligera de Preguntas (HashSet)
+                        System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                        for (int i = 1; i <= _rangoCapturado.Areas.Count; i++)
+                        {
+                            Excel.Range areaIndividual = (Excel.Range)_rangoCapturado.Areas[i];
+                            string idPregunta = ObtenerNumeroPregunta(areaIndividual);
+                            if (!string.IsNullOrEmpty(idPregunta)) { preguntasUnicas.Add(idPregunta); }
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(areaIndividual);
+                        }
+                        string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
+
+                        // Apagamos la actualización de pantalla para construir el motor velozmente
+                        xlApp.ScreenUpdating = false;
 
                         // =========================================================================
                         // FASE 2: CONSTRUCCIÓN DEL MOTOR AUXILIAR MATRICIAL
@@ -1328,21 +1465,20 @@ namespace SAVCNG_ExcelDNA
                         Excel.Range primeraCeldaAzul = (Excel.Range)_rangoCapturado.Cells[1, 1];
                         string dirAzulAbsoluta = primeraCeldaAzul.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
 
-                        // 2.1 - Inyectamos la Celda Limpia (Elimina acentos y minúsculas en tiempo real nativo)
+                        // 2.1 Inyectamos la Celda Limpia (Elimina acentos y minúsculas nativamente)
                         Excel.Range celdaLimpiaAzul = celdaMotor.Offset[0, 0];
                         string formulaLimpieza = $"=LOWER(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({dirAzulAbsoluta},\"á\",\"a\"),\"é\",\"e\"),\"í\",\"i\"),\"ó\",\"o\"),\"ú\",\"u\"))";
                         celdaLimpiaAzul.Formula = formulaLimpieza;
-                        // Pintamos el fondo de la celda de amarillo puro
                         celdaLimpiaAzul.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
-                        //Poner el texto en negrita 
                         celdaLimpiaAzul.Font.Bold = true;
+
                         string dirLimpiaAbsoluta = celdaLimpiaAzul.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
 
-                        int filaMotor = 1; // Comenzamos a escribir debajo de la celda limpia
+                        int filaMotor = 1;
                         System.Collections.Generic.List<string> celdasResultadosBooleanos = new System.Collections.Generic.List<string>();
 
-                        // Limpiamos los formatos previos del catálogo para evitar acumulaciones
-                        rangoCatalogo.FormatConditions.Delete();
+                        // Limpieza condicional del catálogo
+                        if (limpiarFormatos) { rangoCatalogo.FormatConditions.Delete(); }
 
                         // Iteramos sobre las celdas del catálogo seleccionado
                         foreach (Excel.Range celdaCat in rangoCatalogo.Cells)
@@ -1351,25 +1487,21 @@ namespace SAVCNG_ExcelDNA
 
                             if (!string.IsNullOrWhiteSpace(textoOriginal) && textoOriginal.Trim() != "")
                             {
-                                // -- INTELIGENCIA DE C# (Sustituye a O365) --
-                                // 1. Quitamos contenido entre paréntesis ej: "(transparencia)"
-                                string textoProcesado = Regex.Replace(textoOriginal, @"\(.*?\)", "").Trim();
+                                // Regex requiere: using System.Text.RegularExpressions; en tus librerías
+                                string textoProcesado = System.Text.RegularExpressions.Regex.Replace(textoOriginal, @"\(.*?\)", "").Trim();
 
-                                // 2. Quitamos acentos y pasamos a minúsculas
                                 textoProcesado = textoProcesado.ToLower()
                                     .Replace("á", "a").Replace("é", "e").Replace("í", "i")
                                     .Replace("ó", "o").Replace("ú", "u");
 
-                                // 3. Dividimos por conectores lógicos para obtener palabras clave puras
                                 string[] separadores = { " y/o ", " y ", " o ", " e ", ",", "/", " a ", " ante ", " bajo ", " cabe ", " con ", " contra ", " de ", " del ", " desde ", " durante ", " en ", " entre ", " hacia ", " hasta ", " mediante ", " para ", " por ", " según ", " sin ", " sobre ", " tras " };
                                 string[] palabrasClave = textoProcesado.Split(separadores, StringSplitOptions.RemoveEmptyEntries);
 
-                                // 4. Construimos la lógica nativa heredada (OR -> SEARCH)
                                 System.Collections.Generic.List<string> fragmentosSearch = new System.Collections.Generic.List<string>();
                                 foreach (string palabra in palabrasClave)
                                 {
                                     string palabraLimpia = palabra.Trim();
-                                    if (palabraLimpia.Length > 2) // Omitimos letras sueltas
+                                    if (palabraLimpia.Length > 2)
                                     {
                                         fragmentosSearch.Add($"ISNUMBER(SEARCH(\"{palabraLimpia}\", {dirLimpiaAbsoluta}))");
                                     }
@@ -1378,11 +1510,8 @@ namespace SAVCNG_ExcelDNA
                                 if (fragmentosSearch.Count > 0)
                                 {
                                     Excel.Range filaValidacion = celdaMotor.Offset[filaMotor, 0];
-
-                                    // Columna 1 del motor: El nombre original (Solo como referencia visual)
                                     filaValidacion.Value2 = textoOriginal;
 
-                                    // Columna 2 del motor: Inyectamos la fórmula booleana nativa
                                     Excel.Range celdaMatch = celdaMotor.Offset[filaMotor, 1];
                                     string formulaMatch = $"=OR({string.Join(",", fragmentosSearch)})";
                                     celdaMatch.Formula = formulaMatch;
@@ -1391,18 +1520,16 @@ namespace SAVCNG_ExcelDNA
                                     celdasResultadosBooleanos.Add(dirMatchAbsoluta);
 
                                     // =========================================================================
-                                    // FASE 3: TRUCO ARQUITECTÓNICO DE TRADUCCIÓN (Evitar #¿NOMBRE?)
+                                    // FASE 3: TRUCO ARQUITECTÓNICO DE TRADUCCIÓN (FormatCondition)
                                     // =========================================================================
                                     string celdaCatRelativa = celdaCat.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
                                     string formulaFormatCondIngles = $"=AND({celdaCatRelativa}<>\"\", {dirMatchAbsoluta}=TRUE)";
 
-                                    // Inyectamos en celda dummy oculta para forzar la traducción al Excel del usuario
-                                    Excel.Range celdaDummy = ws.Cells[1048576, 16384]; // Última celda de la hoja XFD1048576
+                                    Excel.Range celdaDummy = ws.Cells[1048576, 16384];
                                     celdaDummy.Formula = formulaFormatCondIngles;
-                                    string formulaFormatCondLocal = celdaDummy.FormulaLocal; // ¡Aquí obtenemos el idioma local seguro!
+                                    string formulaFormatCondLocal = celdaDummy.FormulaLocal;
                                     celdaDummy.Clear();
 
-                                    // Aplicamos el formato condicional específico a la celda del catálogo
                                     Excel.FormatCondition fc = (Excel.FormatCondition)celdaCat.FormatConditions.Add(
                                         Excel.XlFormatConditionType.xlExpression,
                                         Type.Missing,
@@ -1411,21 +1538,29 @@ namespace SAVCNG_ExcelDNA
                                     fc.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
                                     fc.Font.Bold = true;
 
+                                    // Liberación rigurosa de memoria en cada iteración
                                     System.Runtime.InteropServices.Marshal.ReleaseComObject(fc);
+                                    System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
                                     System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaMatch);
+                                    System.Runtime.InteropServices.Marshal.ReleaseComObject(filaValidacion);
                                     filaMotor++;
                                 }
                             }
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaCat); // Crucial para catálogos largos
                         }
 
                         // =========================================================================
-                        // FASE 4: VINCULACIÓN DEL MENSAJE DE ALERTA (B77)
+                        // FASE 4: VINCULACIÓN DEL MENSAJE DE ALERTA 
                         // =========================================================================
                         if (celdasResultadosBooleanos.Count > 0)
                         {
-                            string sumaResultados = string.Join(",", celdasResultadosBooleanos);
-                            // Si el motor detecta algún TRUE, arroja el mensaje.
-                            string formulaMensajeFinal = $"=IF(COUNTIF({celdaMotor.Offset[1, 1].get_Address(true, true)}:{celdaMotor.Offset[filaMotor - 1, 1].get_Address(true, true)}, TRUE)>0, \"Alerta: Revise el texto ingresado en el Especifique ya que podría existir en las opciones resaltadas en amarillo\", \"\")";
+                            Excel.Range celdaInicioRango = celdaMotor.Offset[1, 1];
+                            Excel.Range celdaFinRango = celdaMotor.Offset[filaMotor - 1, 1];
+
+                            string addressInicio = celdaInicioRango.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+                            string addressFin = celdaFinRango.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+
+                            string formulaMensajeFinal = $"=IF(COUNTIF({addressInicio}:{addressFin}, TRUE)>0, \"Alerta: Revise el texto ingresado en el Especifique ya que podría existir en las opciones resaltadas en amarillo\", \"\")";
 
                             if (rangoMensaje.Count > 1) { rangoMensaje.Merge(); }
                             rangoMensaje.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
@@ -1435,24 +1570,39 @@ namespace SAVCNG_ExcelDNA
                             rangoMensaje.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 144, 0));
 
                             rangoMensaje.Formula = formulaMensajeFinal;
+
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaInicioRango);
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaFinRango);
                         }
 
-                        // Nota el "this," como primer parámetro
-                        MessageBox.Show(this, "El Diccionario de Palabras Clave fue construido con éxito.", "SAVCNG - ExcelDNA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        // =========================================================================
+                        // FASE 5: REGISTRO DE AUDITORÍA Y NOTIFICACIÓN
+                        // =========================================================================
+                        AuditoriaCenso.RegistrarAccion(
+                            _libroCenso,
+                            preguntasDetectadas,
+                            "Motor de Búsqueda (Especifique)",
+                            _rangoCapturado.Address.Replace("$", ""),
+                            "Formato Condicional - Fórmulas"
+                        );
+
+                        MessageBox.Show(this, "El Diccionario de Palabras Clave y la Alerta Inteligente fueron construidos con éxito.", "SAVCNG - ExcelDNA", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        if (ex.Message != "Cancelado")
-                        {
-                            MessageBox.Show(this,"Operación Cancelada." + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
+                        MessageBox.Show(this, "Error crítico al configurar el motor de búsqueda: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                     finally
                     {
                         chkEspClave.Checked = false;
+
+                        // Limpieza profunda COM
                         if (rangoCatalogo != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoCatalogo);
                         if (rangoMensaje != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(rangoMensaje);
                         if (celdaMotor != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaMotor);
+                        if (ws != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(ws);
+
+                        if (xlApp != null) xlApp.ScreenUpdating = true; // Devolvemos el refresco de pantalla
                     }
                 }
                 // --- VALIDACIÓN FECHAS ---
@@ -1463,6 +1613,7 @@ namespace SAVCNG_ExcelDNA
                     try
                     {
                         // Instanciamos excelApp para poder usar InputBox y controlar la pantalla
+                        excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
                         wsActual = (Excel.Worksheet)_rangoCapturado.Worksheet;
 
                         // =========================================================================
@@ -1530,7 +1681,29 @@ namespace SAVCNG_ExcelDNA
                             }
                         }
 
-                        // Optimización de rendimiento visual
+                        // =========================================================================
+                        // FASE 2.5: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
+                        // =========================================================================
+                        // Extraemos las preguntas justo antes de apagar la pantalla para asegurar que el usuario no abortará
+                        System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+
+                        for (int i = 1; i <= _rangoCapturado.Areas.Count; i++)
+                        {
+                            Excel.Range areaIndividual = (Excel.Range)_rangoCapturado.Areas[i];
+                            string idPregunta = ObtenerNumeroPregunta(areaIndividual);
+
+                            if (!string.IsNullOrEmpty(idPregunta))
+                            {
+                                preguntasUnicas.Add(idPregunta);
+                            }
+                            // Liberación rigurosa de memoria COM en cada ciclo
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(areaIndividual);
+                        }
+
+                        // Si el HashSet encontró preguntas, las unimos separadas por comas. De lo contrario, enviamos "ND"
+                        string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
+
+                        // Optimización de rendimiento visual (Silenciamos Excel)
                         excelApp.ScreenUpdating = false;
 
                         // =========================================================================
@@ -1555,8 +1728,6 @@ namespace SAVCNG_ExcelDNA
                                 // ---------------------------------------------------------------------
                                 // INGENIERÍA DE FÓRMULA UNIVERSAL (INTEGRANDO TRUNC PARA BLOQUEAR DECIMALES)
                                 // ---------------------------------------------------------------------
-                                // Si es un número, verifica que esté entre los límites Y que sea un número entero (TRUNC).
-                                // Si NO es número, omite la matemática y verifica si el texto es NS o NA.
                                 string formulaValidacionIngles = $"=IF(ISNUMBER({direccionRelativa}), AND({direccionRelativa}>={limiteInferior}, {direccionRelativa}<={limiteSuperior}, TRUNC({direccionRelativa})={direccionRelativa}), OR(TRIM({direccionRelativa})=\"NS\", TRIM({direccionRelativa})=\"NA\"))";
 
                                 // Truco Arquitectónico de Traducción Fila-Sensible
@@ -1595,6 +1766,15 @@ namespace SAVCNG_ExcelDNA
                         chkFechas.Checked = false;
                         string estadoAuditoria = limpiarFormatos ? "Se borraron configuraciones visuales previas." : "Se conservaron colores y bloqueos anteriores.";
 
+                        // Registro de Auditoría con el esquema actualizado (5 parámetros)
+                        AuditoriaCenso.RegistrarAccion(
+                            _libroCenso,
+                            preguntasDetectadas,
+                            "Rango Numérico (Fechas)",
+                            _rangoCapturado.Address.Replace("$", ""),
+                            "Data Validation (Custom)" // Nuevo campo: Funcionalidad Excel
+                        );
+
                         MessageBox.Show(this,
                             $"Validación de rango aplicada con éxito en {_rangoCapturado.Areas.Count} bloque(s).\n\n" +
                             $"• Criterio: Números enteros del {limiteInferior} al {limiteSuperior} (o claves NS/NA).\n" +
@@ -1608,9 +1788,9 @@ namespace SAVCNG_ExcelDNA
                     }
                     finally
                     {
-                        // Restaurar sistema y limpiar raíz
+                        // Restaurar sistema y limpiar raíz COM
                         if (wsActual != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsActual);
-                        excelApp.ScreenUpdating = true;
+                        if (excelApp != null) excelApp.ScreenUpdating = true; // Se asegura de que se encienda la pantalla nuevamente
                     }
                 }
                 // --- VALIDACIÓN SUMAS ---
@@ -1863,11 +2043,26 @@ namespace SAVCNG_ExcelDNA
             // Lo enlazamos a la grilla para que el usuario pueda ver, filtrar u ordenar
             dgvAuditoria.DataSource = historial;
 
-            // UX: Configuración visual del Grid
+            // 1.Responsividad del Contenedor(Se estira con la ventana)
+            dgvAuditoria.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+
+            // 2. Responsividad del Contenido (Las columnas llenan el espacio vacío)
             dgvAuditoria.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvAuditoria.ReadOnly = true;
-            dgvAuditoria.AllowUserToAddRows = false;
-            dgvAuditoria.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            // 3. Estética Institucional (Limpieza de ruido visual)
+            dgvAuditoria.AllowUserToAddRows = false; // Quita la última fila en blanco editable
+            dgvAuditoria.AllowUserToDeleteRows = false;
+            dgvAuditoria.ReadOnly = true; // El auditor no debe alterar la bitácora desde aquí
+
+            // 4. Experiencia de Navegación (Mejora la legibilidad)
+            dgvAuditoria.SelectionMode = DataGridViewSelectionMode.FullRowSelect; // Selecciona toda la fila al hacer clic
+            dgvAuditoria.MultiSelect = false;
+            dgvAuditoria.RowHeadersVisible = false; // Oculta la columna gris inútil de la izquierda
+
+            // 5. Estilo de celdas alternadas (Zebra striping para fatiga visual)
+            dgvAuditoria.AlternatingRowsDefaultCellStyle.BackColor = System.Drawing.Color.LightGray;
+            dgvAuditoria.BackgroundColor = System.Drawing.Color.White; // Fondo blanco en lugar de gris oscuro
+
         }
 
         private void btnActualizar_Click(object sender, EventArgs e)
