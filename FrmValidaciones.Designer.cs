@@ -101,9 +101,9 @@
             this.lblCenso.AutoSize = true;
             this.lblCenso.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.125F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblCenso.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.lblCenso.Location = new System.Drawing.Point(3, 84);
+            this.lblCenso.Location = new System.Drawing.Point(3, 82);
             this.lblCenso.Name = "lblCenso";
-            this.lblCenso.Size = new System.Drawing.Size(199, 17);
+            this.lblCenso.Size = new System.Drawing.Size(229, 20);
             this.lblCenso.TabIndex = 0;
             this.lblCenso.Text = "Censo cargado: (Ninguno)";
             // 
@@ -125,9 +125,9 @@
             this.label1.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.label1.AutoSize = true;
             this.label1.Font = new System.Drawing.Font("Arial Narrow", 16.125F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label1.Location = new System.Drawing.Point(146, 25);
+            this.label1.Location = new System.Drawing.Point(143, 7);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(629, 26);
+            this.label1.Size = new System.Drawing.Size(635, 62);
             this.label1.TabIndex = 2;
             this.label1.Text = "Sistema Automatizado de Validaciones para Censos Nacionales de Gobierno";
             this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -177,11 +177,11 @@
             // 
             this.tabPage1.Controls.Add(this.tLP_ProcesoVal);
             this.tabPage1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tabPage1.Location = new System.Drawing.Point(4, 24);
+            this.tabPage1.Location = new System.Drawing.Point(4, 27);
             this.tabPage1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabPage1.Size = new System.Drawing.Size(920, 590);
+            this.tabPage1.Size = new System.Drawing.Size(920, 587);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Validaciones ";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -205,7 +205,7 @@
             this.tLP_ProcesoVal.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 31.5485F));
             this.tLP_ProcesoVal.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 2F));
             this.tLP_ProcesoVal.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 10.6722F));
-            this.tLP_ProcesoVal.Size = new System.Drawing.Size(914, 586);
+            this.tLP_ProcesoVal.Size = new System.Drawing.Size(914, 583);
             this.tLP_ProcesoVal.TabIndex = 18;
             // 
             // tLP_Paso1
@@ -220,7 +220,7 @@
             this.tLP_Paso1.RowCount = 2;
             this.tLP_Paso1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 45.36082F));
             this.tLP_Paso1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 54.63918F));
-            this.tLP_Paso1.Size = new System.Drawing.Size(908, 104);
+            this.tLP_Paso1.Size = new System.Drawing.Size(908, 103);
             this.tLP_Paso1.TabIndex = 25;
             // 
             // label2
@@ -229,7 +229,7 @@
             this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label2.Location = new System.Drawing.Point(3, 0);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(375, 47);
+            this.label2.Size = new System.Drawing.Size(375, 46);
             this.label2.TabIndex = 20;
             this.label2.Text = "Paso 1: Seleccionar el rango a validar.";
             this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -244,7 +244,7 @@
             this.tableLayoutPanel5.Controls.Add(this.lblPregunta, 1, 0);
             this.tableLayoutPanel5.Controls.Add(this.lblRangoSeleccionado, 2, 0);
             this.tableLayoutPanel5.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 50);
+            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 49);
             this.tableLayoutPanel5.Name = "tableLayoutPanel5";
             this.tableLayoutPanel5.RowCount = 1;
             this.tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -270,9 +270,9 @@
             // 
             this.lblPregunta.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.lblPregunta.AutoSize = true;
-            this.lblPregunta.Location = new System.Drawing.Point(183, 18);
+            this.lblPregunta.Location = new System.Drawing.Point(183, 16);
             this.lblPregunta.Name = "lblPregunta";
-            this.lblPregunta.Size = new System.Drawing.Size(117, 15);
+            this.lblPregunta.Size = new System.Drawing.Size(139, 18);
             this.lblPregunta.TabIndex = 22;
             this.lblPregunta.Text = "Pregunta detectada:";
             // 
@@ -280,9 +280,9 @@
             // 
             this.lblRangoSeleccionado.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.lblRangoSeleccionado.AutoSize = true;
-            this.lblRangoSeleccionado.Location = new System.Drawing.Point(513, 18);
+            this.lblRangoSeleccionado.Location = new System.Drawing.Point(513, 16);
             this.lblRangoSeleccionado.Name = "lblRangoSeleccionado";
-            this.lblRangoSeleccionado.Size = new System.Drawing.Size(125, 15);
+            this.lblRangoSeleccionado.Size = new System.Drawing.Size(150, 18);
             this.lblRangoSeleccionado.TabIndex = 23;
             this.lblRangoSeleccionado.Text = "Rango Seleccionado:";
             // 
@@ -305,12 +305,12 @@
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkBloqueo, 1, 1);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkBlancos, 2, 1);
             this.tLP_Paso2_chkboxes.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tLP_Paso2_chkboxes.Location = new System.Drawing.Point(3, 153);
+            this.tLP_Paso2_chkboxes.Location = new System.Drawing.Point(3, 152);
             this.tLP_Paso2_chkboxes.Name = "tLP_Paso2_chkboxes";
             this.tLP_Paso2_chkboxes.RowCount = 2;
             this.tLP_Paso2_chkboxes.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tLP_Paso2_chkboxes.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tLP_Paso2_chkboxes.Size = new System.Drawing.Size(908, 179);
+            this.tLP_Paso2_chkboxes.Size = new System.Drawing.Size(908, 178);
             this.tLP_Paso2_chkboxes.TabIndex = 26;
             // 
             // chkCatalogos
@@ -445,7 +445,7 @@
             this.tLP_Paso2_Banner.Controls.Add(this.label3, 0, 1);
             this.tLP_Paso2_Banner.Controls.Add(this.label7, 0, 0);
             this.tLP_Paso2_Banner.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tLP_Paso2_Banner.Location = new System.Drawing.Point(3, 113);
+            this.tLP_Paso2_Banner.Location = new System.Drawing.Point(3, 112);
             this.tLP_Paso2_Banner.Name = "tLP_Paso2_Banner";
             this.tLP_Paso2_Banner.RowCount = 2;
             this.tLP_Paso2_Banner.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 2F));
@@ -481,7 +481,7 @@
             this.tLP_Paso3.Controls.Add(this.btnAplicar, 1, 0);
             this.tLP_Paso3.Controls.Add(this.label4, 0, 0);
             this.tLP_Paso3.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tLP_Paso3.Location = new System.Drawing.Point(3, 524);
+            this.tLP_Paso3.Location = new System.Drawing.Point(3, 521);
             this.tLP_Paso3.Name = "tLP_Paso3";
             this.tLP_Paso3.RowCount = 1;
             this.tLP_Paso3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
@@ -519,7 +519,7 @@
             this.label8.AutoSize = true;
             this.label8.BackColor = System.Drawing.Color.Black;
             this.label8.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.label8.Location = new System.Drawing.Point(3, 519);
+            this.label8.Location = new System.Drawing.Point(3, 516);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(908, 2);
             this.label8.TabIndex = 29;
@@ -528,11 +528,11 @@
             // 
             this.tp2_RevUtil.Controls.Add(this.tLP_RevisionUtilidades);
             this.tp2_RevUtil.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tp2_RevUtil.Location = new System.Drawing.Point(4, 24);
+            this.tp2_RevUtil.Location = new System.Drawing.Point(4, 27);
             this.tp2_RevUtil.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tp2_RevUtil.Name = "tp2_RevUtil";
             this.tp2_RevUtil.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tp2_RevUtil.Size = new System.Drawing.Size(920, 590);
+            this.tp2_RevUtil.Size = new System.Drawing.Size(920, 587);
             this.tp2_RevUtil.TabIndex = 1;
             this.tp2_RevUtil.Text = "Revisión / Utilidades";
             this.tp2_RevUtil.UseVisualStyleBackColor = true;
@@ -549,7 +549,7 @@
             this.tLP_RevisionUtilidades.RowCount = 2;
             this.tLP_RevisionUtilidades.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
             this.tLP_RevisionUtilidades.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 410F));
-            this.tLP_RevisionUtilidades.Size = new System.Drawing.Size(914, 586);
+            this.tLP_RevisionUtilidades.Size = new System.Drawing.Size(914, 583);
             this.tLP_RevisionUtilidades.TabIndex = 2031;
             // 
             // groupBox1
@@ -562,7 +562,7 @@
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox1.Location = new System.Drawing.Point(3, 3);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(451, 170);
+            this.groupBox1.Size = new System.Drawing.Size(451, 167);
             this.groupBox1.TabIndex = 2032;
             this.groupBox1.TabStop = false;
             // 
@@ -573,7 +573,7 @@
             this.label5.ForeColor = System.Drawing.SystemColors.Highlight;
             this.label5.Location = new System.Drawing.Point(6, 35);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(140, 19);
+            this.label5.Size = new System.Drawing.Size(166, 23);
             this.label5.TabIndex = 2029;
             this.label5.Text = "Control de Bloqueo";
             this.label5.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -590,6 +590,7 @@
             this.btnDesbloqueo.TabIndex = 2028;
             this.btnDesbloqueo.Text = "Desproteger";
             this.btnDesbloqueo.UseVisualStyleBackColor = false;
+            this.btnDesbloqueo.Click += new System.EventHandler(this.btnDesbloqueo_Click);
             // 
             // btnBloqueo
             // 
@@ -603,6 +604,7 @@
             this.btnBloqueo.TabIndex = 2;
             this.btnBloqueo.Text = "Proteger";
             this.btnBloqueo.UseVisualStyleBackColor = false;
+            this.btnBloqueo.Click += new System.EventHandler(this.btnBloqueo_Click);
             // 
             // nudPeriodo
             // 
@@ -619,7 +621,7 @@
             0,
             0});
             this.nudPeriodo.Name = "nudPeriodo";
-            this.nudPeriodo.Size = new System.Drawing.Size(82, 21);
+            this.nudPeriodo.Size = new System.Drawing.Size(82, 24);
             this.nudPeriodo.TabIndex = 2027;
             this.nudPeriodo.Value = new decimal(new int[] {
             2026,
@@ -632,7 +634,7 @@
             this.label6.AutoSize = true;
             this.label6.Location = new System.Drawing.Point(7, 71);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(53, 15);
+            this.label6.Size = new System.Drawing.Size(64, 18);
             this.label6.TabIndex = 2030;
             this.label6.Text = "Periodo:";
             this.label6.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -722,7 +724,7 @@
             // 
             // FrmValidaciones
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(934, 731);
             this.Controls.Add(this.tableLayoutPanel1);

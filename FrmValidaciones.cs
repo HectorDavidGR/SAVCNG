@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
@@ -1409,6 +1409,9 @@ namespace SAVCNG_ExcelDNA
                         object resultadoSuperior = excelApp.InputBox(
                             "Indica el valor MÁXIMO aceptado para esta validación:\n\n(Ej. 31 para días, 12 para meses, o 2026 para años).",
                             "SAVCNG - Límite Superior", "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
+                            "Indica el valor MÁXIMO aceptado para esta validación:\n\n(Ej. 31 para días, 12 para meses, o 2026 para años).",
+                            "Límite Superior",
+                            "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
                         if (resultadoSuperior is bool && (bool)resultadoSuperior == false) { chkFechas.Checked = false; return; }
                         string inputSuperior = resultadoSuperior.ToString().Trim();
@@ -1930,5 +1933,205 @@ namespace SAVCNG_ExcelDNA
                 Cursor.Current = Cursors.Default;
             }
         }
+
+        private void btnBloqueo_Click(object sender, EventArgs e)
+        {
+            // 1. Validamos que haya un censo (libro de Excel) cargado en memoria
+            if (_libroCenso == null)
+            {
+                MessageBox.Show(this, "No hay ningún censo cargado en memoria para proteger.", "Operación Denegada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 2. Contabilizamos el estado inicial de protección de las hojas
+            int totalHojas = _libroCenso.Worksheets.Count;
+            int hojasYaProtegidasAlInicio = 0;
+
+            foreach (Excel.Worksheet hojaCheck in _libroCenso.Worksheets)
+            {
+                if (hojaCheck.ProtectContents)
+                {
+                    hojasYaProtegidasAlInicio++;
+                }
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(hojaCheck);
+            }
+
+            // EXCEPCIÓN A: Si TODAS las hojas ya contaban con protección previa
+            if (hojasYaProtegidasAlInicio == totalHojas)
+            {
+                MessageBox.Show(this, "El libro ya está protegido por lo que no se aplicó protección con la clave del año elegido", "Aviso de Protección", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // 3. Validamos y obtenemos el valor del año desde el NumericUpDown (nudPeriodo)
+            int anioSeleccionado = decimal.ToInt32(nudPeriodo.Value);
+
+            if (anioSeleccionado <= 0)
+            {
+                MessageBox.Show(this, "Por favor, selecciona un año válido en el periodo antes de proteger el libro.", "Periodo Requerido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 4. Estructuramos la contraseña concatenando "njm" con el año
+            string passwordEstructurada = "njm" + anioSeleccionado.ToString();
+
+            Excel.Application localExcelApp = null;
+            int hojasProtegidasExitosamente = 0;
+
+            try
+            {
+                localExcelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+                localExcelApp.ScreenUpdating = false;
+
+                // 5. Recorremos el libro para aplicar la protección únicamente a las hojas desprotegidas
+                foreach (Excel.Worksheet hoja in _libroCenso.Worksheets)
+                {
+                    try
+                    {
+                        // Si la hoja no está protegida, aplicamos el bloqueo algorítmico
+                        if (!hoja.ProtectContents)
+                        {
+                            hoja.Protect(
+                                Password: passwordEstructurada,
+                                DrawingObjects: true,
+                                Contents: true,
+                                Scenarios: true,
+                                UserInterfaceOnly: false
+                            );
+                            hojasProtegidasExitosamente++;
+                        }
+                    }
+                    catch (Exception exHoja)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"No se pudo proteger la hoja '{hoja.Name}': {exHoja.Message}");
+                    }
+                    finally
+                    {
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(hoja);
+                    }
+                }
+
+                localExcelApp.ScreenUpdating = true;
+
+                // EXCEPCIÓN B: Si sólo ALGUNAS hojas estaban protegidas previamente
+                if (hojasYaProtegidasAlInicio > 0)
+                {
+                    MessageBox.Show(this, $"Sólo se protegieron {hojasProtegidasExitosamente} hojas debido a que las demás ya estaban protegidas con una clave previa.", "Protección Parcial", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    // Flujo Normal: Si ninguna estaba protegida y se bloquearon todas
+                    MessageBox.Show(this, $"Se han protegido con éxito todas las hojas del libro.\n\nContraseña aplicada: {passwordEstructurada}", "Libro Protegido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (localExcelApp != null) localExcelApp.ScreenUpdating = true;
+                MessageBox.Show(this, "Error crítico al intentar proteger las hojas: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void btnDesbloqueo_Click(object sender, EventArgs e)
+        {
+            // 1. Validamos que haya un censo (libro de Excel) cargado en memoria
+            if (_libroCenso == null)
+            {
+                MessageBox.Show(this, "No hay ningún censo cargado en memoria para desproteger.", "Operación Denegada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 2. VALIDACIÓN: Contabilizar cuántas hojas están protegidas actualmente antes de proceder
+            int hojasProtegidasAlInicio = 0;
+            foreach (Excel.Worksheet hojaCheck in _libroCenso.Worksheets)
+            {
+                if (hojaCheck.ProtectContents)
+                {
+                    hojasProtegidasAlInicio++;
+                }
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(hojaCheck);
+            }
+
+            // Si NINGUNA hoja está protegida en todo el libro, se lanza el Alert y se detiene la ejecución
+            if (hojasProtegidasAlInicio == 0)
+            {
+                MessageBox.Show(this, "No se aplicó la acción de desproteger debido a que las hojas no estaban protegidas.", "Aviso de Desprotección", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // 3. Obtenemos de forma segura el año desde el control 'nudPeriodo'
+            int anioSeleccionado = decimal.ToInt32(nudPeriodo.Value);
+
+            if (anioSeleccionado <= 0)
+            {
+                MessageBox.Show(this, "Por favor, verifica que el control de Periodo tenga el año correspondiente al censo.", "Periodo Inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 4. Reconstruimos la contraseña dinámica para desproteger (ej. "njm2026")
+            string passwordEstructurada = "njm" + anioSeleccionado.ToString();
+
+            Excel.Application localExcelApp = null;
+            try
+            {
+                localExcelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+                localExcelApp.ScreenUpdating = false;
+
+                int hojasDesprotegidasExitosamente = 0;
+                int hojasFallidas = 0;
+
+                // 5. Recorremos cada una de las hojas de trabajo y desprotegemos únicamente las que estén bloqueadas
+                foreach (Excel.Worksheet hoja in _libroCenso.Worksheets)
+                {
+                    try
+                    {
+                        if (hoja.ProtectContents)
+                        {
+                            hoja.Unprotect(passwordEstructurada);
+                            hojasDesprotegidasExitosamente++;
+                        }
+                    }
+                    catch (Exception exHoja)
+                    {
+                        // Si la contraseña dinámica no coincide con la clave real de la hoja
+                        hojasFallidas++;
+                        System.Diagnostics.Debug.WriteLine($"No se pudo desproteger la hoja '{hoja.Name}': {exHoja.Message}");
+                    }
+                    finally
+                    {
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(hoja);
+                    }
+                }
+
+                localExcelApp.ScreenUpdating = true;
+
+                // 6. Mensajes informativos de finalización
+                if (hojasFallidas > 0)
+                {
+                    MessageBox.Show(this,
+                        $"Se desprotegieron {hojasDesprotegidasExitosamente} hojas correctamente.\n\n" +
+                        $"Sin embargo, {hojasFallidas} hojas no pudieron ser desprotegidas con la clave '{passwordEstructurada}'. " +
+                        "Verifica si corresponden a otro año o clave previa.",
+                        "Desprotección Parcial",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    MessageBox.Show(this, "Se han desprotegido con éxito todas las hojas del libro de trabajo.", "Libro Desprotegido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (localExcelApp != null) localExcelApp.ScreenUpdating = true;
+                MessageBox.Show(this, "Error crítico al intentar desproteger las hojas: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+
+
+
+
     }
 }
