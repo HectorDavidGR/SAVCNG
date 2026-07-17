@@ -1409,9 +1409,6 @@ namespace SAVCNG_ExcelDNA
                         object resultadoSuperior = excelApp.InputBox(
                             "Indica el valor MÁXIMO aceptado para esta validación:\n\n(Ej. 31 para días, 12 para meses, o 2026 para años).",
                             "SAVCNG - Límite Superior", "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
-                            "Indica el valor MÁXIMO aceptado para esta validación:\n\n(Ej. 31 para días, 12 para meses, o 2026 para años).",
-                            "Límite Superior",
-                            "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
                         if (resultadoSuperior is bool && (bool)resultadoSuperior == false) { chkFechas.Checked = false; return; }
                         string inputSuperior = resultadoSuperior.ToString().Trim();
