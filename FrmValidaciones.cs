@@ -100,6 +100,7 @@ namespace SAVCNG_ExcelDNA
 
             toolTipValidaciones.SetToolTip(this.chkSumas,
                 "Motor de sumas cruzadas horizontales (FormatConditions) y generación de fórmulas automáticas (Σ) verticales.\nPermite apilamiento jerárquico multinivel.");
+            
         }
         // Evento para seleccionar exclusivamente 1 checkbox a la vez
         private void CheckBox_Exclusivo_CheckedChanged(object sender, EventArgs e)
@@ -201,8 +202,6 @@ namespace SAVCNG_ExcelDNA
             Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
             string separador = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
 
-            
-
             try
             {
                 // Primero verificamos que el usuario no haya olvidado capturar un rango
@@ -213,11 +212,44 @@ namespace SAVCNG_ExcelDNA
                 }
                 //=====================================================================================================
                 // --- VALIDACIÓN DECIMALES ---
-                if (chkDecimales.Checked == true)
+                else if (chkDecimales.Checked == true)
                 {
                     try
                     {
+                        // ==========================================================
+                        // PREVENCIÓN DE SOBRESCRITURA DE VALIDACIÓN
+                        // ==========================================================
+                        bool tieneValidacionPrevia = false;
+                        try
+                        {
+                            // Revisamos si la primera celda ya tiene alguna regla
+                            Excel.Range primeraCeldaRango = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                            int tipoValidacion = primeraCeldaRango.Validation.Type;
+                            tieneValidacionPrevia = true;
+                        }
+                        catch
+                        {
+                            // Si cae aquí, la celda está limpia
+                            tieneValidacionPrevia = false;
+                        }
 
+                        if (tieneValidacionPrevia)
+                        {
+                            DialogResult sobrescribir = MessageBox.Show(this,
+                                "Las celdas que seleccionaste ya tienen una validacion de datos o lista desplegable asignada.\n\n" +
+                                "¿Estás seguro de que deseas borrarla y aplicar esta validación de números enteros en su lugar?",
+                                "Validación existente detectada",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning);
+
+                            if (sobrescribir == DialogResult.No)
+                            {
+                                chkDecimales.Checked = false;
+                                return; // Abortamos limpiamente sin tocar su Excel
+                            }
+                        }
+
+                        // ==========================================================
                         // 1. Limpiamos validaciones previas para no empalmar reglas
                         _rangoCapturado.Validation.Delete();
 
@@ -228,8 +260,6 @@ namespace SAVCNG_ExcelDNA
                         // ==========================================================
                         // FÓRMULA LOCAL (ESPAÑOL) BLINDADA CON SI.ERROR
                         // ==========================================================
-                        // Envolvemos Y(ESNUMERO... TRUNCAR...) dentro de un SI.ERROR( ... ; FALSO)
-                        // Esto evita que TRUNCAR estalle cuando lee los textos "NS" o "NA"
                         string formulaDecimales = $"=O(ESBLANCO({direccion}){separador}SI.ERROR(Y(ESNUMERO({direccion}){separador}TRUNCAR({direccion})={direccion}){separador}FALSO){separador}{direccion}=\"NS\"{separador}{direccion}=\"NA\")";
 
                         // 3. Aplicamos la regla restrictiva (Data Validation)
@@ -245,16 +275,21 @@ namespace SAVCNG_ExcelDNA
                         _rangoCapturado.Validation.ShowError = true;
 
                         // 5. Textos personalizados para el usuario final (UX)
-                        _rangoCapturado.Validation.ErrorTitle = "Captura Inválida";
-                        _rangoCapturado.Validation.ErrorMessage = "El formato de esta celda solo admite numeros enteros, por lo que no debe agregar texto ni desagregar decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o los códigos 'NS' o 'NA'.";
+                        _rangoCapturado.Validation.ErrorTitle = "Solo números enteros";
+                        _rangoCapturado.Validation.ErrorMessage = "El formato de esta celda no admite texto ni decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o las claves de omisión 'NS' y 'NA'.";
 
                         // 6. Limpiamos la interfaz y avisamos del éxito
                         chkDecimales.Checked = false;
-                        MessageBox.Show(this, "Validación de formatos Decimales aplicada con éxito.\n\nLa validación considera los valores NS y NA de forma segura.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        MessageBox.Show(this,
+                            "Validación de números enteros aplicada con éxito.\n\nLas celdas ahora bloquean los decimales y aceptan las claves NS/NA.",
+                            "Regla aplicada",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this, "Error crítico al aplicar Validación de Decimales: " + ex.Message, "Error de Inserción", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, "Error crítico al aplicar la validación: " + ex.Message, "Error de Inserción", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkDecimales.Checked = false;
                     }
                 }
@@ -427,6 +462,41 @@ namespace SAVCNG_ExcelDNA
 
                             // 5. Construcción de la cadena final (Usando tu variable 'separador' original)
                             formulaOpciones = string.Join(separador, listaLimpios);
+                        }
+                    }
+
+                    // ==========================================================
+                    // NUEVO PASO: PREVENCIÓN DE SOBRESCRITURA DE VALIDACIÓN
+                    // ==========================================================
+                    bool tieneValidacionPrevia = false;
+                    try
+                    {
+                        // Revisamos la primera celda del rango capturado.
+                        // Si no tiene validación, Excel lanzará una excepción silenciosa.
+                        Excel.Range primeraCeldaRango = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        int tipoValidacion = primeraCeldaRango.Validation.Type;
+                        tieneValidacionPrevia = true; // Si llega aquí, sí hay validación
+                    }
+                    catch
+                    {
+                        // Si cae aquí, la celda está limpia. No hacemos nada.
+                        tieneValidacionPrevia = false;
+                    }
+
+                    if (tieneValidacionPrevia)
+                    {
+                        // Interfaz conversacional y amigable para el usuario
+                        DialogResult sobrescribir = MessageBox.Show(this,
+                            "Las celdas que seleccionaste ya tienen una validación de datos o lista desplegable asignada.\n\n" +
+                            "¿Estás seguro de que deseas borrarla y aplicar este nuevo catálogo en su lugar?",
+                            "Validación existente detectada",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Warning);
+
+                        if (sobrescribir == DialogResult.No)
+                        {
+                            chkCatalogos.Checked = false;
+                            return; // Abortamos la operación sin tocar su Excel
                         }
                     }
 
@@ -1931,6 +2001,8 @@ namespace SAVCNG_ExcelDNA
             }
         }
 
+        // --- INICIO DE EVENTOS PARA PESTAÑA REVISIÓN/UTILIDADES ---
+        //Funcion para bloqueo de hojas con contraseña
         private void btnBloqueo_Click(object sender, EventArgs e)
         {
             // 1. Validamos que haya un censo (libro de Excel) cargado en memoria
@@ -2027,8 +2099,7 @@ namespace SAVCNG_ExcelDNA
                 MessageBox.Show(this, "Error crítico al intentar proteger las hojas: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
-
+        //Funcion para desbloqueo de hojas con contraseña
         private void btnDesbloqueo_Click(object sender, EventArgs e)
         {
             // 1. Validamos que haya un censo (libro de Excel) cargado en memoria
@@ -2124,11 +2195,6 @@ namespace SAVCNG_ExcelDNA
                 MessageBox.Show(this, "Error crítico al intentar desproteger las hojas: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
-
-
-
-
 
     }
 }
