@@ -100,9 +100,7 @@ namespace SAVCNG_ExcelDNA
 
             toolTipValidaciones.SetToolTip(this.chkSumas,
                 "Motor de sumas cruzadas horizontales (FormatConditions) y generación de fórmulas automáticas (Σ) verticales.\nPermite apilamiento jerárquico multinivel.");
-            //Mensajes (tootltip) para pestaña Revision/Utilidades
-            toolTipValidaciones.SetToolTip(this.,
-                "Motor de sumas cruzadas horizontales (FormatConditions) y generación de fórmulas automáticas (Σ) verticales.\nPermite apilamiento jerárquico multinivel.");
+            
         }
         // Evento para seleccionar exclusivamente 1 checkbox a la vez
         private void CheckBox_Exclusivo_CheckedChanged(object sender, EventArgs e)
