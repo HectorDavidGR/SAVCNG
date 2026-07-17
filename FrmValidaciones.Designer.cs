@@ -1,4 +1,4 @@
-﻿namespace SAVCNG_ExcelDNA
+namespace SAVCNG_ExcelDNA
 {
     partial class FrmValidaciones
     {
@@ -74,6 +74,11 @@
             this.btn = new System.Windows.Forms.Button();
             this.tLP_Banner = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
+            this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.tabPage3 = new System.Windows.Forms.TabPage();
+            this.dgvAuditoria = new System.Windows.Forms.DataGridView();
+            this.btnActualizar = new System.Windows.Forms.Button();
+            this.btnDescargarBitacora = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.tableLayoutPanel1.SuspendLayout();
@@ -92,6 +97,8 @@
             this.gb_MacroColores.SuspendLayout();
             this.tLP_Banner.SuspendLayout();
             this.tableLayoutPanel3.SuspendLayout();
+            this.tabPage3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvAuditoria)).BeginInit();
             this.SuspendLayout();
             // 
             // lblCenso
@@ -162,6 +169,7 @@
             // 
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tp2_RevUtil);
+            this.tabControl1.Controls.Add(this.tabPage3);
             this.tabControl1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControl1.Location = new System.Drawing.Point(3, 111);
@@ -720,6 +728,57 @@
             this.tableLayoutPanel3.Size = new System.Drawing.Size(922, 76);
             this.tableLayoutPanel3.TabIndex = 0;
             // 
+            // tabPage2
+            // 
+            this.tabPage2.Location = new System.Drawing.Point(0, 0);
+            this.tabPage2.Name = "tabPage2";
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Size = new System.Drawing.Size(200, 100);
+            this.tabPage2.TabIndex = 0;
+            this.tabPage2.Text = "tabPage2";
+            // 
+            // tabPage3
+            // 
+            this.tabPage3.Controls.Add(this.btnDescargarBitacora);
+            this.tabPage3.Controls.Add(this.btnActualizar);
+            this.tabPage3.Controls.Add(this.dgvAuditoria);
+            this.tabPage3.Location = new System.Drawing.Point(4, 24);
+            this.tabPage3.Name = "tabPage3";
+            this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage3.Size = new System.Drawing.Size(920, 590);
+            this.tabPage3.TabIndex = 2;
+            this.tabPage3.Text = "Estatus Censo";
+            this.tabPage3.UseVisualStyleBackColor = true;
+            // 
+            // dgvAuditoria
+            // 
+            this.dgvAuditoria.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dgvAuditoria.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvAuditoria.Location = new System.Drawing.Point(19, 104);
+            this.dgvAuditoria.Name = "dgvAuditoria";
+            this.dgvAuditoria.Size = new System.Drawing.Size(879, 455);
+            this.dgvAuditoria.TabIndex = 0;
+            // 
+            // btnActualizar
+            // 
+            this.btnActualizar.Location = new System.Drawing.Point(119, 33);
+            this.btnActualizar.Name = "btnActualizar";
+            this.btnActualizar.Size = new System.Drawing.Size(154, 41);
+            this.btnActualizar.TabIndex = 1;
+            this.btnActualizar.Text = "Actualizar";
+            this.btnActualizar.UseVisualStyleBackColor = true;
+            this.btnActualizar.Click += new System.EventHandler(this.btnActualizar_Click);
+            // 
+            // btnDescargarBitacora
+            // 
+            this.btnDescargarBitacora.Location = new System.Drawing.Point(594, 34);
+            this.btnDescargarBitacora.Name = "btnDescargarBitacora";
+            this.btnDescargarBitacora.Size = new System.Drawing.Size(142, 39);
+            this.btnDescargarBitacora.TabIndex = 2;
+            this.btnDescargarBitacora.Text = "Descargar Bitácora";
+            this.btnDescargarBitacora.UseVisualStyleBackColor = true;
+            this.btnDescargarBitacora.Click += new System.EventHandler(this.btnDescargarBitacora_Click);
+            // 
             // FrmValidaciones
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -731,6 +790,7 @@
             this.MinimumSize = new System.Drawing.Size(469, 519);
             this.Name = "FrmValidaciones";
             this.Text = "SAVCNG";
+            this.Load += new System.EventHandler(this.FrmValidaciones_Load);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.tableLayoutPanel1.ResumeLayout(false);
@@ -755,6 +815,8 @@
             this.tLP_Banner.PerformLayout();
             this.tableLayoutPanel3.ResumeLayout(false);
             this.tableLayoutPanel3.PerformLayout();
+            this.tabPage3.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dgvAuditoria)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -802,6 +864,11 @@
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.CheckBox chkSumas;
         private System.Windows.Forms.Label label8;
+        private System.Windows.Forms.TabPage tabPage2;
+        private System.Windows.Forms.TabPage tabPage3;
+        private System.Windows.Forms.DataGridView dgvAuditoria;
+        private System.Windows.Forms.Button btnDescargarBitacora;
+        private System.Windows.Forms.Button btnActualizar;
         private System.Windows.Forms.GroupBox gb_MacroColores;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Label label9;
