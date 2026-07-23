@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.37327.16
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SAVCNG_ExcelDNA", "SAVCNG_ExcelDNA.csproj", "{C8A0D080-F6D3-4C1D-AE25-CBE505E33BBB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C8A0D080-F6D3-4C1D-AE25-CBE505E33BBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8A0D080-F6D3-4C1D-AE25-CBE505E33BBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8A0D080-F6D3-4C1D-AE25-CBE505E33BBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8A0D080-F6D3-4C1D-AE25-CBE505E33BBB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3CA37213-B49F-420D-A53B-538C3211FB84}
+	EndGlobalSection
+EndGlobal
