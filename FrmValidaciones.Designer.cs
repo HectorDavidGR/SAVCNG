@@ -416,7 +416,6 @@ namespace SAVCNG_ExcelDNA
             // 
             this.chkSumas.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkSumas.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkSumas.Enabled = false;
             this.chkSumas.Location = new System.Drawing.Point(3, 66);
             this.chkSumas.Name = "chkSumas";
             this.chkSumas.Size = new System.Drawing.Size(101, 55);
@@ -429,7 +428,6 @@ namespace SAVCNG_ExcelDNA
             // 
             this.chkBloqueo.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkBloqueo.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkBloqueo.Enabled = false;
             this.chkBloqueo.Location = new System.Drawing.Point(110, 66);
             this.chkBloqueo.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkBloqueo.Name = "chkBloqueo";
@@ -443,7 +441,6 @@ namespace SAVCNG_ExcelDNA
             // 
             this.chkBlancos.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkBlancos.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkBlancos.Enabled = false;
             this.chkBlancos.Location = new System.Drawing.Point(218, 67);
             this.chkBlancos.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkBlancos.Name = "chkBlancos";
