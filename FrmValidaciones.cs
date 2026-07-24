@@ -1276,47 +1276,190 @@ namespace SAVCNG_ExcelDNA
                         chkBloqueo.Checked = false;
                     }
                 }
-                // --- VALIDACIÓN BLANCOS ---
+
+                // --- VALIDACION BLANCOS -------
                 else if (chkBlancos.Checked == true)
                 {
                     try
                     {
-                        // 1. Solicitar destino del Mensaje en Azul
+                        // ==========================================================
+                        // FUNCIÓN LOCAL PARA DIÁLOGO NATIVO (Evita errores CS0103 y CS0234)
+                        // ==========================================================
+                        Func<string, string, string, string> PedirInputWinForms = (prompt, titulo, defecto) =>
+                        {
+                            using (Form dlg = new Form())
+                            {
+                                Label lbl = new Label { Text = prompt, Left = 12, Top = 12, Width = 380, AutoSize = true };
+                                TextBox txt = new TextBox { Text = defecto, Left = 12, Top = 100, Width = 380 };
+                                Button btnOk = new Button { Text = "Aceptar", DialogResult = DialogResult.OK, Left = 216, Top = 135, Width = 80, Height = 28 };
+                                Button btnCancel = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel, Left = 312, Top = 135, Width = 80, Height = 28 };
+
+                                dlg.Text = titulo;
+                                dlg.ClientSize = new System.Drawing.Size(406, 175);
+                                dlg.Controls.AddRange(new Control[] { lbl, txt, btnOk, btnCancel });
+                                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                                dlg.StartPosition = FormStartPosition.CenterScreen;
+                                dlg.MaximizeBox = false;
+                                dlg.MinimizeBox = false;
+                                dlg.AcceptButton = btnOk;
+                                dlg.CancelButton = btnCancel;
+                                dlg.TopMost = true;
+
+                                // Si el texto es muy largo, ajustamos la posición del cuadro de texto
+                                if (lbl.Height > 70)
+                                {
+                                    txt.Top = lbl.Bottom + 10;
+                                    btnOk.Top = txt.Bottom + 15;
+                                    btnCancel.Top = txt.Bottom + 15;
+                                    dlg.Height = btnOk.Bottom + 45;
+                                }
+
+                                return dlg.ShowDialog(this) == DialogResult.OK ? txt.Text : null;
+                            }
+                        };
+
+                        // ==========================================================
+                        // 1. PREGUNTA INICIAL: CASOS DE EXCEPCIÓN / EXCLUSIÓN
+                        // ==========================================================
+                        string mensajePrompt = "Indica los valores para los cuales NO se debe aplicar la validación de Blancos.\n\n" +
+                                               "• Si son varios, sepáralos por comas (Ejemplo: 2, 9).\n" +
+                                               //"• Si desea que la validación se aplique SIEMPRE, deja el campo en blanco y presiona Aceptar.\n" +
+                                               "• Deje vacía la captura en caso de no requerir alguna excepción" +
+                                               //"• Si deseas abortar la operación, presiona Cancelar.";
+                                               ".\n";
+
+                        string resExclusiones = PedirInputWinForms(mensajePrompt, "Excepciones de Validación (Opcional)", "2, 9");
+
+                        // Si el usuario presiona Cancelar o cierra la ventana
+                        if (resExclusiones == null)
+                        {
+                            chkBlancos.Checked = false;
+                            return;
+                        }
+
+                        string textoExclusiones = resExclusiones.Trim();
+                        System.Collections.Generic.List<string> listaCondicionesExcluidas = new System.Collections.Generic.List<string>();
+
+                        if (!string.IsNullOrEmpty(textoExclusiones))
+                        {
+                            string[] valoresExcluidos = textoExclusiones.Split(new char[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (string val in valoresExcluidos)
+                            {
+                                string valLimpio = val.Trim();
+                                if (!string.IsNullOrEmpty(valLimpio))
+                                {
+                                    bool esNum = double.TryParse(valLimpio, out _);
+                                    string valFormateado = esNum ? valLimpio : $"\"{valLimpio}\"";
+
+                                    // Condición matemática: Que NO exista este valor en el rango evaluado
+                                    listaCondicionesExcluidas.Add($"COUNTIF({{0}}, {valFormateado})=0");
+                                }
+                            }
+                        }
+
+                        // ==========================================================
+                        // 2. SOLICITAR UBICACIÓN DE ALERTA (Rango de Excel)
+                        // ==========================================================
+                        this.Hide();
                         object resDestino = excelApp.InputBox(
-                            "Selecciona la celda o rango donde aparecerá el mensaje de alerta (Se combinará y pintará de azul automáticamente):",
+                            "Selecciona el rango donde aparecerá el mensaje de alerta (Se combinará y pintará de azul automáticamente):",
                             "1. Ubicación de Alerta", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
+                        this.Show();
 
                         if (resDestino is bool && (bool)resDestino == false) { chkBlancos.Checked = false; return; }
                         Excel.Range rangoDestino = (Excel.Range)resDestino;
 
-                        // 2. Solicitar texto del mensaje
-                        object resTexto = excelApp.InputBox(
-                            "Escribe el mensaje de advertencia:\n(El sistema evaluará el rango capturado fila por fila. Si una fila tiene datos, exigirá que esté completa)",
-                            "2. Mensaje de Alerta", "Favor de revisar la información faltante en las celdas sombreadas", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2); // 2 = Texto
+                        // ==========================================================
+                        // 3. SOLICITAR TEXTO DEL MENSAJE DE ADVERTENCIA
+                        // ==========================================================
+                        string resTexto = PedirInputWinForms(
+                            "Escribe el mensaje de advertencia:\n(El sistema evaluará el rango capturado. Si hay celdas iniciadas pero faltan datos, exigirá completarlas)",
+                            "2. Mensaje de Alerta",
+                            //"Favor de revisar la información faltante en las celdas sombreadas");
+                            "Favor de ingresar toda la información requerida en la pregunta");
 
-                        if (resTexto is bool && (bool)resTexto == false) { chkBlancos.Checked = false; return; }
-                        string textoAlerta = resTexto.ToString().Trim();
+                        if (string.IsNullOrWhiteSpace(resTexto)) { chkBlancos.Checked = false; return; }
+                        string textoAlerta = resTexto.Trim();
 
                         // ==========================================================
-                        // MOTOR MATRICIAL INTELIGENTE (ALERTA GLOBAL)
+                        // 4. CONSTRUCCIÓN INTELIGENTE ANTI-CELDAS COMBINADAS (MERGED)
                         // ==========================================================
+                        int filaInicial = _rangoCapturado.Row;
 
-                        System.Collections.Generic.List<string> listaActivadores = new System.Collections.Generic.List<string>();
-                        System.Collections.Generic.List<string> listaVacios = new System.Collections.Generic.List<string>();
+                        System.Collections.Generic.List<string> listaLlenasRelativas = new System.Collections.Generic.List<string>();
+                        System.Collections.Generic.List<string> listaVaciasRelativas = new System.Collections.Generic.List<string>();
+                        System.Collections.Generic.List<string> listaLlenasAbsolutas = new System.Collections.Generic.List<string>();
 
-                        for (int i = 1; i <= _rangoCapturado.Columns.Count; i++)
+                        int c = 1;
+                        while (c <= _rangoCapturado.Columns.Count)
                         {
-                            Excel.Range col = (Excel.Range)_rangoCapturado.Columns[i];
-                            string dirColAbs = col.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+                            Excel.Range celdaActual = (Excel.Range)_rangoCapturado.Cells[1, c];
+                            string colLetra = celdaActual.Address.Split('$')[1];
 
-                            listaActivadores.Add($"({dirColAbs}<>\"\")");
-                            listaVacios.Add($"({dirColAbs}=\"\")");
+                            string dirRelativaCelda = $"{colLetra}{filaInicial}";
+                            string dirAbsolutaColumna = $"${colLetra}{filaInicial}"; // Columna fijada con $ para el formato condicional
+
+                            // Listas para la fórmula de la celda de mensaje
+                            listaLlenasRelativas.Add($"({dirRelativaCelda}<>\"\")");
+                            listaVaciasRelativas.Add($"({dirRelativaCelda}=\"\")");
+
+                            // Lista con columna fija ($) para el Formato Condicional (Pintado Azul)
+                            listaLlenasAbsolutas.Add($"({dirAbsolutaColumna}<>\"\")");
+
+                            // SI LA CELDA ESTÁ COMBINADA (Merge), saltamos las columnas ocultas
+                            if ((bool)celdaActual.MergeCells)
+                            {
+                                Excel.Range areaCombinada = celdaActual.MergeArea;
+                                int columnasCombinadas = areaCombinada.Columns.Count;
+                                c += columnasCombinadas;
+                                System.Runtime.InteropServices.Marshal.ReleaseComObject(areaCombinada);
+                            }
+                            else
+                            {
+                                c++;
+                            }
+
+                            System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaActual);
                         }
 
-                        string motorActivadores = string.Join("+", listaActivadores);
-                        string motorVacios = string.Join("+", listaVacios);
+                        string sumaLlenasRel = string.Join("+", listaLlenasRelativas);
+                        string sumaVaciasRel = string.Join("+", listaVaciasRelativas);
+                        string sumaLlenasAbs = string.Join("+", listaLlenasAbsolutas);
 
-                        string formulaGlobal = $"=IF(SUMPRODUCT(({motorActivadores})*({motorVacios}))>0, \"{textoAlerta}\", \"\")";
+                        // Coordenadas del rango capturado en la fila actual
+                        Excel.Range primeraCeldaCapturada = (Excel.Range)_rangoCapturado.Cells[1, 1];
+                        Excel.Range ultimaCeldaCapturada = (Excel.Range)_rangoCapturado.Cells[1, _rangoCapturado.Columns.Count];
+
+                        string colIniLetra = primeraCeldaCapturada.Address.Split('$')[1];
+                        string colFinLetra = ultimaCeldaCapturada.Address.Split('$')[1];
+
+                        string rangoFilaRelativo = $"{colIniLetra}{filaInicial}:{colFinLetra}{filaInicial}";
+                        string rangoFilaAbsoluto = $"${colIniLetra}{filaInicial}:${colFinLetra}{filaInicial}";
+
+                        // Construir cláusula de exclusión si el usuario ingresó valores
+                        string clausulaExclusionRel = "";
+                        string clausulaExclusionAbs = "";
+
+                        if (listaCondicionesExcluidas.Count > 0)
+                        {
+                            var condRel = listaCondicionesExcluidas.ConvertAll(cond => string.Format(cond, rangoFilaRelativo));
+                            var condAbs = listaCondicionesExcluidas.ConvertAll(cond => string.Format(cond, rangoFilaAbsoluto));
+
+                            clausulaExclusionRel = ", " + string.Join(", ", condRel);
+                            clausulaExclusionAbs = ", " + string.Join(", ", condAbs);
+                        }
+
+                        // ==========================================================
+                        // 5. INYECCIÓN DE FÓRMULA DE ALERTA TRADUCIDA
+                        // ==========================================================
+                        Excel.Worksheet wsActual = (Excel.Worksheet)_rangoCapturado.Worksheet;
+                        Excel.Range celdaDummy = (Excel.Range)wsActual.Cells[filaInicial, 16384]; // Columna XFD
+
+                        string formulaGlobalIngles = $"=IF(AND(({sumaLlenasRel})>0, ({sumaVaciasRel})>0{clausulaExclusionRel}), \"{textoAlerta}\", \"\")";
+
+                        celdaDummy.Formula = formulaGlobalIngles;
+                        string formulaGlobalLocal = celdaDummy.FormulaLocal;
+                        celdaDummy.Clear();
 
                         if (rangoDestino.Count > 1) { rangoDestino.Merge(); }
 
@@ -1326,13 +1469,11 @@ namespace SAVCNG_ExcelDNA
                         rangoDestino.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(0, 112, 192));
                         rangoDestino.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
 
-                        rangoDestino.Formula = formulaGlobal;
+                        rangoDestino.FormulaLocal = formulaGlobalLocal;
 
                         // ==========================================================
-                        // FORMATO CONDICIONAL: ÁLGEBRA BOOLEANA (FILA POR FILA)
+                        // 6. INYECCIÓN DEL FORMATO CONDICIONAL (RESALTADO AZUL)
                         // ==========================================================
-
-                        // NUEVA AUDITORÍA DE COEXISTENCIA PARA BLANCOS
                         if (_rangoCapturado.FormatConditions.Count > 0)
                         {
                             DialogResult respFormato = MessageBox.Show(this,
@@ -1354,36 +1495,45 @@ namespace SAVCNG_ExcelDNA
                             _rangoCapturado.FormatConditions.Delete();
                         }
 
-                        int filaInicial = _rangoCapturado.Row;
+                        string colPrimeraLetra = primeraCeldaCapturada.Address.Split('$')[1];
+                        string dirPrimeraRelativa = $"{colPrimeraLetra}{filaInicial}";
 
-                        Excel.Range primeraCeldaCapturada = (Excel.Range)_rangoCapturado.Cells[1, 1];
-                        string celdaCapRelativa = primeraCeldaCapturada.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+                        // Pinta de azul la celda si está vacía, la fila tiene datos Y NO contiene los valores excluidos
+                        string formulaCondicionalIngles = $"=AND({dirPrimeraRelativa}=\"\", ({sumaLlenasAbs})>0{clausulaExclusionAbs})";
 
-                        System.Collections.Generic.List<string> validacionFila = new System.Collections.Generic.List<string>();
-                        for (int c = 1; c <= _rangoCapturado.Columns.Count; c++)
-                        {
-                            Excel.Range celdaIteracion = (Excel.Range)_rangoCapturado.Cells[1, c];
-                            string colLetra = celdaIteracion.Address.Split('$')[1];
+                        celdaDummy.Formula = formulaCondicionalIngles;
+                        string formulaCondicionalLocal = celdaDummy.FormulaLocal;
+                        celdaDummy.Clear();
 
-                            validacionFila.Add($"(${colLetra}{filaInicial}<>\"\")");
-                        }
-                        string sumaFila = string.Join("+", validacionFila);
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCeldaCapturada);
+                        System.Runtime.InteropServices.Marshal.ReleaseComObject(ultimaCeldaCapturada);
 
-                        string formulaCondicionalMatematica = $"=({celdaCapRelativa}=\"\")*(({sumaFila})>0)";
+                        Excel.FormatCondition formatoAzul = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
+                            Excel.XlFormatConditionType.xlExpression, Type.Missing, formulaCondicionalLocal);
 
-                        Excel.FormatCondition formatoAmarillo = (Excel.FormatCondition)_rangoCapturado.FormatConditions.Add(
-                            Excel.XlFormatConditionType.xlExpression, Type.Missing, formulaCondicionalMatematica);
+                        formatoAzul.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(47, 117, 181));
 
-                        formatoAmarillo.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(47, 117, 181));
                         chkBlancos.Checked = false;
-                        MessageBox.Show(this,"Validación de blancos inteligente aplicada.\n\nAhora el sistema ignora filas completamente vacías y coexiste con tus reglas de bloqueo.", "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        string msjExcepciones = listaCondicionesExcluidas.Count > 0
+                            ? $"\n• Excepciones registradas: {textoExclusiones}"
+                            : "";
+
+                        MessageBox.Show(this, "Validación de blancos aplicada con éxito.\n\n" +
+                                              //"• Soporta celdas combinadas de forma nativa.\n" +
+                                              "• Si la fila no contiene ningún código de excepción y faltan campos, se alertará en azul." + msjExcepciones,
+                                              "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(this,"Error en el motor de validación inteligente: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        this.Show();
+                        MessageBox.Show(this, "Error en el motor de validación inteligente: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         chkBlancos.Checked = false;
                     }
                 }
+                // --- FIN VALIDACION BLANCOS
+
                 // --- VALIDACIÓN ESPECIFIQUES (PALABRAS CLAVE) ---
                 else if (chkEspClave.Checked == true)
                 {
