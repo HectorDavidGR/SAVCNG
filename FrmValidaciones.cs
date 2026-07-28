@@ -361,7 +361,7 @@ namespace SAVCNG_ExcelDNA
                         AuditoriaCenso.RegistrarAccion(
                             _libroCenso,
                             preguntasDetectadas,
-                            "Enteros (Respaldo Visual)", // Etiqueta actualizada para reflejar ambas capas
+                            "Validación Decimales", // Etiqueta actualizada para reflejar ambas capas
                             _rangoCapturado.Address.Replace("$", ""),
                             "Validation + FormatCondition" // Actualización en el motor de la bitácora
                         );
