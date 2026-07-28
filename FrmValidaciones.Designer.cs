@@ -332,6 +332,7 @@ namespace SAVCNG_ExcelDNA
             // 
             this.chkCatalogos.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkCatalogos.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkCatalogos.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkCatalogos.Location = new System.Drawing.Point(3, 3);
             this.chkCatalogos.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkCatalogos.Name = "chkCatalogos";
@@ -339,13 +340,14 @@ namespace SAVCNG_ExcelDNA
             this.chkCatalogos.TabIndex = 4;
             this.chkCatalogos.Text = "Catálogos";
             this.chkCatalogos.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkCatalogos.UseVisualStyleBackColor = true;
+            this.chkCatalogos.UseVisualStyleBackColor = false;
             this.chkCatalogos.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkDecimales
             // 
             this.chkDecimales.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkDecimales.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkDecimales.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkDecimales.Location = new System.Drawing.Point(110, 3);
             this.chkDecimales.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkDecimales.Name = "chkDecimales";
@@ -353,13 +355,14 @@ namespace SAVCNG_ExcelDNA
             this.chkDecimales.TabIndex = 1;
             this.chkDecimales.Text = "Decimales (Enteros)";
             this.chkDecimales.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkDecimales.UseVisualStyleBackColor = true;
+            this.chkDecimales.UseVisualStyleBackColor = false;
             this.chkDecimales.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkEspClave
             // 
             this.chkEspClave.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkEspClave.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkEspClave.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkEspClave.Location = new System.Drawing.Point(217, 4);
             this.chkEspClave.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkEspClave.Name = "chkEspClave";
@@ -374,6 +377,7 @@ namespace SAVCNG_ExcelDNA
             // 
             this.chkFechas.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkFechas.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkFechas.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkFechas.Location = new System.Drawing.Point(325, 5);
             this.chkFechas.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkFechas.Name = "chkFechas";
@@ -381,13 +385,14 @@ namespace SAVCNG_ExcelDNA
             this.chkFechas.TabIndex = 14;
             this.chkFechas.Text = "Fechas";
             this.chkFechas.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkFechas.UseVisualStyleBackColor = true;
+            this.chkFechas.UseVisualStyleBackColor = false;
             this.chkFechas.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkFormatoTexto
             // 
             this.chkFormatoTexto.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkFormatoTexto.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkFormatoTexto.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkFormatoTexto.Location = new System.Drawing.Point(431, 3);
             this.chkFormatoTexto.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkFormatoTexto.Name = "chkFormatoTexto";
@@ -395,13 +400,14 @@ namespace SAVCNG_ExcelDNA
             this.chkFormatoTexto.TabIndex = 12;
             this.chkFormatoTexto.Text = "Formato Texto";
             this.chkFormatoTexto.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkFormatoTexto.UseVisualStyleBackColor = true;
+            this.chkFormatoTexto.UseVisualStyleBackColor = false;
             this.chkFormatoTexto.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkNS
             // 
             this.chkNS.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkNS.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkNS.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkNS.Location = new System.Drawing.Point(538, 3);
             this.chkNS.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkNS.Name = "chkNS";
@@ -409,25 +415,29 @@ namespace SAVCNG_ExcelDNA
             this.chkNS.TabIndex = 6;
             this.chkNS.Text = "NS";
             this.chkNS.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkNS.UseVisualStyleBackColor = true;
+            this.chkNS.UseVisualStyleBackColor = false;
             this.chkNS.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
             // 
             // chkSumas
             // 
             this.chkSumas.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkSumas.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkSumas.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
+            this.chkSumas.Enabled = false;
             this.chkSumas.Location = new System.Drawing.Point(3, 66);
             this.chkSumas.Name = "chkSumas";
             this.chkSumas.Size = new System.Drawing.Size(101, 55);
             this.chkSumas.TabIndex = 16;
             this.chkSumas.Text = "Sumas";
             this.chkSumas.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkSumas.UseVisualStyleBackColor = true;
+            this.chkSumas.UseVisualStyleBackColor = false;
             // 
             // chkBloqueo
             // 
             this.chkBloqueo.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkBloqueo.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkBloqueo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
+            this.chkBloqueo.Enabled = false;
             this.chkBloqueo.Location = new System.Drawing.Point(110, 66);
             this.chkBloqueo.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkBloqueo.Name = "chkBloqueo";
@@ -435,12 +445,14 @@ namespace SAVCNG_ExcelDNA
             this.chkBloqueo.TabIndex = 11;
             this.chkBloqueo.Text = "Bloqueos";
             this.chkBloqueo.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkBloqueo.UseVisualStyleBackColor = true;
+            this.chkBloqueo.UseVisualStyleBackColor = false;
             // 
             // chkBlancos
             // 
             this.chkBlancos.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.chkBlancos.Appearance = System.Windows.Forms.Appearance.Button;
+            this.chkBlancos.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
+            this.chkBlancos.Enabled = false;
             this.chkBlancos.Location = new System.Drawing.Point(218, 67);
             this.chkBlancos.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkBlancos.Name = "chkBlancos";
@@ -448,7 +460,7 @@ namespace SAVCNG_ExcelDNA
             this.chkBlancos.TabIndex = 13;
             this.chkBlancos.Text = "Blancos";
             this.chkBlancos.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.chkBlancos.UseVisualStyleBackColor = true;
+            this.chkBlancos.UseVisualStyleBackColor = false;
             // 
             // tLP_Paso2_Banner
             // 

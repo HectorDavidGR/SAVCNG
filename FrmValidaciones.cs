@@ -281,6 +281,8 @@ namespace SAVCNG_ExcelDNA
                         {
                             Excel.Range primeraCelda = null;
                             Excel.Range celdaDummy = null;
+                            Excel.Range celdaDummyFmt = null;
+                            Excel.FormatCondition fcDecimales = null;
 
                             try
                             {
@@ -292,22 +294,18 @@ namespace SAVCNG_ExcelDNA
 
                                 primeraCelda = (Excel.Range)area.Cells[1, 1];
                                 string direccionRelativa = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+                                int filaBaseArea = area.Row;
 
                                 // ---------------------------------------------------------------------
-                                // INGENIERÍA DE FÓRMULA UNIVERSAL (INGLÉS Y CORTOCIRCUITO)
+                                // INYECCIÓN 1: DATA VALIDATION (RESTRICCIÓN ACTIVA)
                                 // ---------------------------------------------------------------------
                                 string formulaIngles = $"=IF(ISNUMBER({direccionRelativa}), TRUNC({direccionRelativa})={direccionRelativa}, OR(TRIM({direccionRelativa})=\"NS\", TRIM({direccionRelativa})=\"NA\"))";
 
-                                // Truco Arquitectónico de Traducción Nativa
-                                int filaBaseArea = area.Row;
                                 celdaDummy = (Excel.Range)wsActual.Cells[filaBaseArea, 16384]; // Columna XFD
                                 celdaDummy.Formula = formulaIngles;
-                                string formulaLocal = celdaDummy.FormulaLocal; // Extraemos la versión traducida con el separador correcto de la PC
+                                string formulaLocal = celdaDummy.FormulaLocal;
                                 celdaDummy.Clear();
 
-                                // ---------------------------------------------------------------------
-                                // INYECCIÓN DE LA REGLA
-                                // ---------------------------------------------------------------------
                                 area.Validation.Add(
                                     Excel.XlDVType.xlValidateCustom,
                                     Excel.XlDVAlertStyle.xlValidAlertStop,
@@ -319,12 +317,35 @@ namespace SAVCNG_ExcelDNA
                                 area.Validation.ShowError = true;
                                 area.Validation.ErrorTitle = "Solo números enteros";
                                 area.Validation.ErrorMessage = "El formato de esta celda no admite texto ni decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o las claves de omisión 'NS' y 'NA'.";
+
+                                // ---------------------------------------------------------------------
+                                // INYECCIÓN 2: FORMATO CONDICIONAL (CENTINELA PASIVO)
+                                // ---------------------------------------------------------------------
+                                // Fórmula inversa: Si NO está vacía Y NO cumple la regla, se pinta de rojo
+                                string formulaCondicionIngles = $"=AND({direccionRelativa}<>\"\", NOT(IF(ISNUMBER({direccionRelativa}), TRUNC({direccionRelativa})={direccionRelativa}, OR(TRIM({direccionRelativa})=\"NS\", TRIM({direccionRelativa})=\"NA\"))))";
+
+                                celdaDummyFmt = (Excel.Range)wsActual.Cells[filaBaseArea, 16384];
+                                celdaDummyFmt.Formula = formulaCondicionIngles;
+                                string formulaCondicionLocal = celdaDummyFmt.FormulaLocal;
+                                celdaDummyFmt.Clear();
+
+                                fcDecimales = (Excel.FormatCondition)area.FormatConditions.Add(
+                                    Excel.XlFormatConditionType.xlExpression,
+                                    Type.Missing,
+                                    formulaCondicionLocal);
+
+                                // Estética: Relleno rojo claro con texto rojo oscuro
+                                fcDecimales.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
+                                fcDecimales.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
+                                fcDecimales.StopIfTrue = false;
                             }
                             finally
                             {
                                 // Prevención estricta de Fugas de Memoria COM en cada ciclo
+                                if (fcDecimales != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fcDecimales);
                                 if (primeraCelda != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCelda);
                                 if (celdaDummy != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
+                                if (celdaDummyFmt != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummyFmt);
                             }
                         }
 
@@ -340,15 +361,16 @@ namespace SAVCNG_ExcelDNA
                         AuditoriaCenso.RegistrarAccion(
                             _libroCenso,
                             preguntasDetectadas,
-                            "Decimales", // Etiqueta corregida
+                            "Validación Decimales", // Etiqueta actualizada para reflejar ambas capas
                             _rangoCapturado.Address.Replace("$", ""),
-                            "Data Validation"
+                            "Validation + FormatCondition" // Actualización en el motor de la bitácora
                         );
 
                         MessageBox.Show(this,
                             $"Validación de números enteros aplicada con éxito en {_rangoCapturado.Areas.Count} bloque(s).\n\n" +
                             $"• Auditoría: {estadoAuditoria}\n" +
-                            $"• Regla: Las celdas bloquean los decimales y aceptan las claves NS/NA.",
+                            $"• Regla Activa: Bloqueo de captura inválida (Data Validation).\n" +
+                            $"• Regla Pasiva: Resalte rojo en caso de alteración externa (Format Conditions).",
                             "SAVCNG - Validación Completada",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Information);
@@ -634,7 +656,7 @@ namespace SAVCNG_ExcelDNA
                         // =========================================================================
                         // FASE 1: UX DE CONFIGURACIÓN GLOBAL Y CONTROL DE ABORTO
                         // =========================================================================
-                        string textoSugerido = "Alerta: debido a que cuenta con registros NS, debe proporcionar una justificación en el área de comentarios al final de la pregunta";
+                        string textoSugerido = "Alerta: justificar el uso de NS.";
                         object resTexto = xlApp.InputBox(
                             "Escribe el texto del mensaje de alerta que se aplicará a las celdas seleccionadas:",
                             "SAVCNG - Configuración Masiva NS (Escucha Pasiva)", textoSugerido, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
@@ -716,6 +738,9 @@ namespace SAVCNG_ExcelDNA
 
                         int preguntasProcesadas = 0;
 
+                        // Ocultar renderizado visual masivo (Mejora drástica de rendimiento)
+                        xlApp.ScreenUpdating = false;
+
                         // =========================================================================
                         // FASE 4: PROCESAMIENTO INTELIGENTE (ÚNICO VS INDIVIDUAL)
                         // =========================================================================
@@ -728,12 +753,14 @@ namespace SAVCNG_ExcelDNA
 
                             if (listaÁreas.Count > 1)
                             {
+                                xlApp.ScreenUpdating = true; // Encender pantalla temporalmente para el MessageBox
                                 DialogResult respArquitectura = MessageBox.Show(this,
                                     $"Se han detectado {listaÁreas.Count} rangos seleccionados para la PREGUNTA {preguntaActual}.\n\n" +
                                     $"¿Deseas configurar una SOLA ALERTA CENTRAL para todos estos rangos?\n\n" +
                                     $"SÍ = Se pedirá 1 sola celda de alerta que evaluará todos los rangos juntos.\n" +
                                     $"NO = Se pedirán {listaÁreas.Count} celdas de alerta (una por cada rango de forma independiente).",
                                     $"SAVCNG - Arquitectura P.{preguntaActual}", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                                xlApp.ScreenUpdating = false; // Volver a apagar
 
                                 // ABORTO TOTAL 3
                                 if (respArquitectura == DialogResult.Cancel)
@@ -754,11 +781,13 @@ namespace SAVCNG_ExcelDNA
                                 Excel.Range rangoAlertaCentral = null;
                                 try
                                 {
+                                    xlApp.ScreenUpdating = true; // Encender para inputbox
                                     object resDestino = xlApp.InputBox(
                                         $"[PREGUNTA DETECTADA: {preguntaActual}] - MODO CENTRALIZADO\n\n" +
                                         $"Selecciona la celda destino donde aparecerá el mensaje de ALERTA para los {listaÁreas.Count} rangos:\n" +
                                         $"(Selección Estándar para mensajes: Columna B hasta AD)",
                                         $"SAVCNG - Alerta Central P.{preguntaActual}", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                                    xlApp.ScreenUpdating = false;
 
                                     // ABORTO TOTAL 4
                                     if (resDestino is bool && (bool)resDestino == false)
@@ -779,6 +808,45 @@ namespace SAVCNG_ExcelDNA
                                             area.Validation.Delete();
                                             area.FormatConditions.Delete();
                                         }
+
+                                        // =====================================================================
+                                        // NUEVA INYECCIÓN: FORMATO CONDICIONAL "NS" EN LA MATRIZ CAPTURADA
+                                        // =====================================================================
+                                        Excel.Range primeraCeldaArea = null;
+                                        Excel.Range celdaDummyFmt = null;
+                                        Excel.FormatCondition fcNS = null;
+
+                                        try
+                                        {
+                                            primeraCeldaArea = (Excel.Range)area.Cells[1, 1];
+                                            string dirRelativaArea = primeraCeldaArea.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                                            // Dummy Cell Trick: Evita errores de separador regional
+                                            celdaDummyFmt = (Excel.Range)wsActual.Cells[area.Row, 16384]; // Columna XFD
+                                            celdaDummyFmt.Formula = $"=TRIM({dirRelativaArea})=\"NS\"";
+                                            string formulaNSLocal = celdaDummyFmt.FormulaLocal;
+                                            celdaDummyFmt.Clear();
+
+                                            fcNS = (Excel.FormatCondition)area.FormatConditions.Add(
+                                                Excel.XlFormatConditionType.xlExpression,
+                                                Type.Missing,
+                                                formulaNSLocal);
+
+                                            // Estética Institucional: Match exacto con el color del mensaje 
+                                            fcNS.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
+                                            fcNS.Font.Bold = true;
+                                            // Fondo amarillo muy tenue para no competir visualmente pero asegurar visibilidad
+                                            fcNS.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 242, 204));
+                                            fcNS.StopIfTrue = false;
+                                        }
+                                        finally
+                                        {
+                                            // Destrucción de la matriz COM (Zero Leaks)
+                                            if (fcNS != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fcNS);
+                                            if (celdaDummyFmt != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummyFmt);
+                                            if (primeraCeldaArea != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCeldaArea);
+                                        }
+                                        // =====================================================================
 
                                         string addrAbsoluta = area.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
                                         fragmentosCountIf.Add($"COUNTIF({addrAbsoluta},\"NS\")");
@@ -812,10 +880,12 @@ namespace SAVCNG_ExcelDNA
 
                                     try
                                     {
+                                        xlApp.ScreenUpdating = true; // Encender para Inputbox
                                         object resDestino = xlApp.InputBox(
                                             $"[PREGUNTA DETECTADA: {preguntaActual}] - Rango {j + 1} de {listaÁreas.Count}\n\n" +
                                             $"Selecciona la celda destino donde aparecerá el mensaje EXCLUSIVO para este rango:",
                                             $"SAVCNG - Alerta Individual P.{preguntaActual} (Área {j + 1})", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                                        xlApp.ScreenUpdating = false;
 
                                         // ABORTO TOTAL 5
                                         if (resDestino is bool && (bool)resDestino == false)
@@ -833,6 +903,41 @@ namespace SAVCNG_ExcelDNA
                                             area.Validation.Delete();
                                             area.FormatConditions.Delete();
                                         }
+
+                                        // =====================================================================
+                                        // NUEVA INYECCIÓN: FORMATO CONDICIONAL "NS" EN LA MATRIZ CAPTURADA
+                                        // =====================================================================
+                                        Excel.Range primeraCeldaArea = null;
+                                        Excel.Range celdaDummyFmt = null;
+                                        Excel.FormatCondition fcNS = null;
+
+                                        try
+                                        {
+                                            primeraCeldaArea = (Excel.Range)area.Cells[1, 1];
+                                            string dirRelativaArea = primeraCeldaArea.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+
+                                            celdaDummyFmt = (Excel.Range)wsActual.Cells[area.Row, 16384];
+                                            celdaDummyFmt.Formula = $"=TRIM({dirRelativaArea})=\"NS\"";
+                                            string formulaNSLocal = celdaDummyFmt.FormulaLocal;
+                                            celdaDummyFmt.Clear();
+
+                                            fcNS = (Excel.FormatCondition)area.FormatConditions.Add(
+                                                Excel.XlFormatConditionType.xlExpression,
+                                                Type.Missing,
+                                                formulaNSLocal);
+
+                                            fcNS.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
+                                            fcNS.Font.Bold = true;
+                                            fcNS.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 242, 204));
+                                            fcNS.StopIfTrue = false;
+                                        }
+                                        finally
+                                        {
+                                            if (fcNS != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fcNS);
+                                            if (celdaDummyFmt != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummyFmt);
+                                            if (primeraCeldaArea != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCeldaArea);
+                                        }
+                                        // =====================================================================
 
                                         if (rangoAlertaIndiv.Count > 1) { rangoAlertaIndiv.Merge(); }
                                         rangoAlertaIndiv.Font.Name = "Arial";
@@ -864,23 +969,24 @@ namespace SAVCNG_ExcelDNA
                         // =========================================================================
                         // REGISTRO DE AUDITORÍA EN LA BITÁCORA DEL SISTEMA
                         // =========================================================================
-                        // Extraemos las claves (preguntas) del diccionario y las unimos separadas por comas
                         string preguntasDetectadas = string.Join(", ", áreasPorPregunta.Keys);
 
                         AuditoriaCenso.RegistrarAccion(
                             _libroCenso,
-                            preguntasDetectadas, // Enviamos "1.1, 1.2" en lugar del texto fijo "Múltiples"
+                            preguntasDetectadas,
                             "Validación NS",
-                            _rangoCapturado.Address.Replace("$", ""), // UX: Quitamos los $ para que se lea mejor en el DataGrid
-                            "Fórmulas" // NUEVO: Agregamos la funcionalidad Excel
+                            _rangoCapturado.Address.Replace("$", ""),
+                            "Fórmulas / FormatCondition" // <--- Actualizamos la auditoría
                         );
+
+                        xlApp.ScreenUpdating = true; // Aseguramos que la pantalla reviva al final
 
                         MessageBox.Show(this,
                             $"Procesamiento masivo finalizado con éxito.\n\n" +
                             $"• Preguntas procesadas: {preguntasProcesadas}\n" +
                             $"• Total de rangos mapeados: {_rangoCapturado.Areas.Count}\n" +
                             $"• Auditoría: {estadoPrevias}\n\n" +
-                            $"Nota: Las celdas admiten cualquier tipo de dato (Escucha Pasiva).",
+                            $"Nota: Las celdas admiten cualquier tipo de dato y se resaltarán en color ORO si detectan 'NS'.",
                             "SAVCNG Automatización Masiva", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
@@ -890,6 +996,9 @@ namespace SAVCNG_ExcelDNA
                     }
                     finally
                     {
+                        // Restauración definitiva en el bloque final
+                        Excel.Application xlAppSafe = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+                        xlAppSafe.ScreenUpdating = true;
                         if (wsActual != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsActual);
                     }
                 }
