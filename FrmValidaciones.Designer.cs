@@ -311,16 +311,16 @@ namespace SAVCNG_ExcelDNA
             this.tLP_Paso2_chkboxes.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 16.66667F));
             this.tLP_Paso2_chkboxes.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 16.66667F));
             this.tLP_Paso2_chkboxes.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 16.66667F));
-            this.tLP_Paso2_chkboxes.Controls.Add(this.chkCoordenadas, 0, 0);
+            this.tLP_Paso2_chkboxes.Controls.Add(this.chkCoordenadas, 2, 1);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkCatalogos, 0, 0);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkDecimales, 1, 0);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkEspClave, 2, 0);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkFechas, 3, 0);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkFormatoTexto, 4, 0);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkNS, 5, 0);
-            this.tLP_Paso2_chkboxes.Controls.Add(this.chkSumas, 1, 1);
+            this.tLP_Paso2_chkboxes.Controls.Add(this.chkSumas, 3, 1);
             this.tLP_Paso2_chkboxes.Controls.Add(this.chkBloqueo, 1, 1);
-            this.tLP_Paso2_chkboxes.Controls.Add(this.chkBlancos, 1, 1);
+            this.tLP_Paso2_chkboxes.Controls.Add(this.chkBlancos, 0, 1);
             this.tLP_Paso2_chkboxes.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tLP_Paso2_chkboxes.Location = new System.Drawing.Point(3, 114);
             this.tLP_Paso2_chkboxes.Name = "tLP_Paso2_chkboxes";
@@ -333,12 +333,13 @@ namespace SAVCNG_ExcelDNA
             // chkCoordenadas
             // 
             this.chkCoordenadas.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkCoordenadas.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
+            this.chkCoordenadas.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
             this.chkCoordenadas.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkCoordenadas.Location = new System.Drawing.Point(112, 2);
+            this.chkCoordenadas.Enabled = false;
+            this.chkCoordenadas.Location = new System.Drawing.Point(221, 67);
             this.chkCoordenadas.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkCoordenadas.Name = "chkCoordenadas";
-            this.chkCoordenadas.Size = new System.Drawing.Size(103, 61);
+            this.chkCoordenadas.Size = new System.Drawing.Size(103, 62);
             this.chkCoordenadas.TabIndex = 17;
             this.chkCoordenadas.Text = "Coordenadas";
             this.chkCoordenadas.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -364,7 +365,7 @@ namespace SAVCNG_ExcelDNA
             this.chkDecimales.Appearance = System.Windows.Forms.Appearance.Button;
             this.chkDecimales.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkDecimales.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkDecimales.Location = new System.Drawing.Point(221, 2);
+            this.chkDecimales.Location = new System.Drawing.Point(112, 2);
             this.chkDecimales.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkDecimales.Name = "chkDecimales";
             this.chkDecimales.Size = new System.Drawing.Size(103, 61);
@@ -379,7 +380,7 @@ namespace SAVCNG_ExcelDNA
             this.chkEspClave.Appearance = System.Windows.Forms.Appearance.Button;
             this.chkEspClave.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkEspClave.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkEspClave.Location = new System.Drawing.Point(330, 4);
+            this.chkEspClave.Location = new System.Drawing.Point(221, 4);
             this.chkEspClave.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkEspClave.Name = "chkEspClave";
             this.chkEspClave.Size = new System.Drawing.Size(103, 57);
@@ -394,7 +395,7 @@ namespace SAVCNG_ExcelDNA
             this.chkFechas.Appearance = System.Windows.Forms.Appearance.Button;
             this.chkFechas.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkFechas.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkFechas.Location = new System.Drawing.Point(440, 5);
+            this.chkFechas.Location = new System.Drawing.Point(331, 5);
             this.chkFechas.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkFechas.Name = "chkFechas";
             this.chkFechas.Size = new System.Drawing.Size(101, 55);
@@ -409,10 +410,10 @@ namespace SAVCNG_ExcelDNA
             this.chkFormatoTexto.Appearance = System.Windows.Forms.Appearance.Button;
             this.chkFormatoTexto.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkFormatoTexto.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkFormatoTexto.Location = new System.Drawing.Point(548, 2);
+            this.chkFormatoTexto.Location = new System.Drawing.Point(439, 2);
             this.chkFormatoTexto.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkFormatoTexto.Name = "chkFormatoTexto";
-            this.chkFormatoTexto.Size = new System.Drawing.Size(107, 61);
+            this.chkFormatoTexto.Size = new System.Drawing.Size(103, 61);
             this.chkFormatoTexto.TabIndex = 12;
             this.chkFormatoTexto.Text = "Formato Texto";
             this.chkFormatoTexto.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -424,10 +425,10 @@ namespace SAVCNG_ExcelDNA
             this.chkNS.Appearance = System.Windows.Forms.Appearance.Button;
             this.chkNS.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkNS.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkNS.Location = new System.Drawing.Point(3, 67);
+            this.chkNS.Location = new System.Drawing.Point(548, 2);
             this.chkNS.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkNS.Name = "chkNS";
-            this.chkNS.Size = new System.Drawing.Size(103, 62);
+            this.chkNS.Size = new System.Drawing.Size(107, 61);
             this.chkNS.TabIndex = 6;
             this.chkNS.Text = "NS";
             this.chkNS.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -454,7 +455,7 @@ namespace SAVCNG_ExcelDNA
             this.chkBloqueo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
             this.chkBloqueo.Dock = System.Windows.Forms.DockStyle.Fill;
             this.chkBloqueo.Enabled = false;
-            this.chkBloqueo.Location = new System.Drawing.Point(221, 67);
+            this.chkBloqueo.Location = new System.Drawing.Point(112, 67);
             this.chkBloqueo.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkBloqueo.Name = "chkBloqueo";
             this.chkBloqueo.Size = new System.Drawing.Size(103, 62);
@@ -469,7 +470,7 @@ namespace SAVCNG_ExcelDNA
             this.chkBlancos.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
             this.chkBlancos.Dock = System.Windows.Forms.DockStyle.Fill;
             this.chkBlancos.Enabled = false;
-            this.chkBlancos.Location = new System.Drawing.Point(113, 70);
+            this.chkBlancos.Location = new System.Drawing.Point(4, 70);
             this.chkBlancos.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkBlancos.Name = "chkBlancos";
             this.chkBlancos.Size = new System.Drawing.Size(101, 56);
@@ -807,7 +808,7 @@ namespace SAVCNG_ExcelDNA
             this.tabPage3.Location = new System.Drawing.Point(4, 24);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage3.Size = new System.Drawing.Size(843, 557);
+            this.tabPage3.Size = new System.Drawing.Size(670, 438);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Estatus Censo";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -824,7 +825,7 @@ namespace SAVCNG_ExcelDNA
             this.tableLayoutPanel2.RowCount = 2;
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 15F));
             this.tableLayoutPanel2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 85F));
-            this.tableLayoutPanel2.Size = new System.Drawing.Size(837, 551);
+            this.tableLayoutPanel2.Size = new System.Drawing.Size(664, 432);
             this.tableLayoutPanel2.TabIndex = 3;
             // 
             // tableLayoutPanel4
@@ -839,7 +840,7 @@ namespace SAVCNG_ExcelDNA
             this.tableLayoutPanel4.Name = "tableLayoutPanel4";
             this.tableLayoutPanel4.RowCount = 1;
             this.tableLayoutPanel4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tableLayoutPanel4.Size = new System.Drawing.Size(831, 76);
+            this.tableLayoutPanel4.Size = new System.Drawing.Size(658, 58);
             this.tableLayoutPanel4.TabIndex = 0;
             // 
             // btnActualizar
@@ -850,7 +851,7 @@ namespace SAVCNG_ExcelDNA
             this.btnActualizar.ForeColor = System.Drawing.SystemColors.ButtonFace;
             this.btnActualizar.Location = new System.Drawing.Point(3, 3);
             this.btnActualizar.Name = "btnActualizar";
-            this.btnActualizar.Size = new System.Drawing.Size(409, 70);
+            this.btnActualizar.Size = new System.Drawing.Size(323, 52);
             this.btnActualizar.TabIndex = 1;
             this.btnActualizar.Text = "Actualizar";
             this.btnActualizar.UseVisualStyleBackColor = false;
@@ -862,9 +863,9 @@ namespace SAVCNG_ExcelDNA
             this.btnDescargarBitacora.Dock = System.Windows.Forms.DockStyle.Fill;
             this.btnDescargarBitacora.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnDescargarBitacora.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnDescargarBitacora.Location = new System.Drawing.Point(418, 3);
+            this.btnDescargarBitacora.Location = new System.Drawing.Point(332, 3);
             this.btnDescargarBitacora.Name = "btnDescargarBitacora";
-            this.btnDescargarBitacora.Size = new System.Drawing.Size(410, 70);
+            this.btnDescargarBitacora.Size = new System.Drawing.Size(323, 52);
             this.btnDescargarBitacora.TabIndex = 2;
             this.btnDescargarBitacora.Text = "Descargar Bitácora";
             this.btnDescargarBitacora.UseVisualStyleBackColor = false;
@@ -874,7 +875,7 @@ namespace SAVCNG_ExcelDNA
             // 
             this.dgvAuditoria.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dgvAuditoria.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dgvAuditoria.Location = new System.Drawing.Point(3, 85);
+            this.dgvAuditoria.Location = new System.Drawing.Point(3, 67);
             this.dgvAuditoria.Name = "dgvAuditoria";
             this.dgvAuditoria.RowHeadersWidth = 51;
             this.dgvAuditoria.Size = new System.Drawing.Size(648, 346);
