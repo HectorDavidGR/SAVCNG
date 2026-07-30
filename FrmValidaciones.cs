@@ -82,6 +82,9 @@ namespace SAVCNG_ExcelDNA
 
             toolTipValidaciones.SetToolTip(this.chkCatalogos,
                 "Crea una lista de opciones predefinidas. Es ideal para campos de opción múltiple o catálogos, limitando lo que se puede escribir en la celda.");
+            
+            toolTipValidaciones.SetToolTip(this.chkCoordenadas,
+                "Restringe las celdas para aceptar únicamente coordenadas geográficas dentro del territorio nacional mexicano. Valida que la latitud se encuentre entre 11 y 33, o la longitud entre -83 y -123.");
 
             toolTipValidaciones.SetToolTip(this.chkDecimales,
                 "Asegura que solo se puedan escribir números enteros (sin punto decimal). Además, permite registrar los códigos 'NS' y 'NA'");
