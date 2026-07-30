@@ -225,12 +225,56 @@ namespace SAVCNG_ExcelDNA
                         wsActual = (Excel.Worksheet)_rangoCapturado.Worksheet;
 
                         // =========================================================================
-                        // FASE 1: AUDITORÍA DE COEXISTENCIA (DETECCIÓN DE REGLAS PREVIAS)
+                        // FASE 1: UX DE DECISIÓN (ELIMINACIÓN DE AMBIGÜEDAD SÍ/NO)
+                        // =========================================================================
+                        string opcionEscogida = "";
+
+                        // Patrón de bucle para retener al usuario hasta que ingrese un dato válido o cancele
+                        while (true)
+                        {
+                            object seleccionTipo = excelApp.InputBox(
+                                "Ingresa el NÚMERO de la regla que deseas aplicar:\n\n" +
+                                "1 = Solo números ENTEROS.\n" +
+                                "2 = Números DECIMALES (Hasta 10 posiciones).",
+                                "SAVCNG - Configuración Numérica",
+                                Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 1); // Type=1 (Solo evalúa números)
+
+                            // Control de Aborto Silencioso (Si el usuario da clic en Cancelar o la 'X')
+                            if (seleccionTipo is bool && (bool)seleccionTipo == false)
+                            {
+                                chkDecimales.Checked = false;
+                                return; // Aquí sí abortamos todo el proceso
+                            }
+
+                            opcionEscogida = seleccionTipo.ToString().Trim();
+
+                            // Condición de Salida Segura
+                            if (opcionEscogida == "1" || opcionEscogida == "2")
+                            {
+                                break; // El dato es correcto, rompemos el bucle y continuamos con la Fase 2
+                            }
+                            else
+                            {
+                                // Alerta de corrección (Al no tener un "return" aquí, el bucle vuelve a mostrar el InputBox)
+                                MessageBox.Show(this, "Opción no válida. Por favor ingresa el número 1 o 2.", "Dato Incorrecto", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            }
+                        }
+
+                        // Asignación de variables de contexto basadas en la decisión
+                        bool esValidacionEnteros = (opcionEscogida == "1");
+                        string etiquetaBitacora = esValidacionEnteros ? "Validación Enteros" : "Validación Decimales";
+                        string tituloError = esValidacionEnteros ? "Solo números enteros" : "Formato decimal inválido";
+                        string mensajeError = esValidacionEnteros
+                            ? "El formato de esta celda no admite texto, decimales, ni números negativos.\n\nPor favor, introduce únicamente un NÚMERO ENTERO POSITIVO (incluyendo el 0) o las claves 'NS' y 'NA'."
+                            : "El formato de esta celda exige NÚMEROS POSITIVOS (incluyendo el 0) con un máximo de 10 posiciones decimales.\n\nPor favor, introduce un número válido o las claves 'NS' y 'NA'.";
+
+                        // =========================================================================
+                        // FASE 2: AUDITORÍA DE COEXISTENCIA
                         // =========================================================================
                         bool tieneFormatosPrevios = _rangoCapturado.FormatConditions.Count > 0;
                         bool tieneValidacionPrevia = false;
 
-                        try { var tipo = _rangoCapturado.Validation.Type; tieneValidacionPrevia = true; } catch { /* Silenciado: No hay DataValidation previa */ }
+                        try { var tipo = _rangoCapturado.Validation.Type; tieneValidacionPrevia = true; } catch { /* Silenciado */ }
 
                         bool limpiarFormatos = false;
 
@@ -238,7 +282,7 @@ namespace SAVCNG_ExcelDNA
                         {
                             DialogResult respLimpieza = MessageBox.Show(this,
                                 "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
-                                "NOTA: Al ser una restricción de captura estricta, la regla de celdas se sobreescribirá, pero...\n\n" +
+                                "NOTA: Al ser una restricción de captura estricta, la regla se sobreescribirá, pero...\n\n" +
                                 "¿Deseas CONSERVAR los colores, alertas o bloqueos (Formatos Condicionales) aplicados previamente?\n\n" +
                                 "SÍ = MANTENER colores/bloqueos anteriores.\n" +
                                 "NO = BORRAR todo el historial y limpiar el lienzo.",
@@ -247,9 +291,8 @@ namespace SAVCNG_ExcelDNA
                             if (respLimpieza == DialogResult.Cancel)
                             {
                                 chkDecimales.Checked = false;
-                                return; // Abortamos limpiamente
+                                return;
                             }
-
                             if (respLimpieza == DialogResult.No)
                             {
                                 limpiarFormatos = true;
@@ -257,7 +300,7 @@ namespace SAVCNG_ExcelDNA
                         }
 
                         // =========================================================================
-                        // FASE 1.5: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
+                        // FASE 3: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
                         // =========================================================================
                         System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
 
@@ -270,82 +313,103 @@ namespace SAVCNG_ExcelDNA
                             {
                                 preguntasUnicas.Add(idPregunta);
                             }
-
+                            // Memory Leak Prevention
                             System.Runtime.InteropServices.Marshal.ReleaseComObject(areaIndividual);
                         }
 
-                        // Apagamos la actualización de pantalla para un inyectado masivo rápido y silencioso
+                        // Apagamos alertas visuales para inyección masiva en segundo plano
                         excelApp.ScreenUpdating = false;
 
                         // =========================================================================
-                        // FASE 2: PROCESAMIENTO MASIVO POR ÁREAS Y TRADUCCIÓN UNIVERSAL
+                        // FASE 4: PROCESAMIENTO MASIVO POR ÁREAS Y TRADUCCIÓN UNIVERSAL
                         // =========================================================================
                         foreach (Excel.Range area in _rangoCapturado.Areas)
                         {
                             Excel.Range primeraCelda = null;
                             Excel.Range celdaDummy = null;
                             Excel.Range celdaDummyFmt = null;
-                            Excel.FormatCondition fcDecimales = null;
+                            Excel.FormatCondition fcSecundario = null;
 
                             try
                             {
-                                // Limpieza obligatoria de validaciones anteriores (No se empalman)
+                                // Limpieza obligatoria antes de inyectar nuevas reglas
                                 area.Validation.Delete();
-
-                                // Limpieza opcional de formatos visuales
                                 if (limpiarFormatos) { area.FormatConditions.Delete(); }
 
+                                // ---------------------------------------------------------------------
+                                // NUEVO: AJUSTE ARQUITECTÓNICO DE LA CAPA DE PRESENTACIÓN (UI)
+                                // ---------------------------------------------------------------------
+                                // Al usar NumberFormat (en inglés por defecto de COM), evitamos que Excel redondee visualmente.
+                                if (esValidacionEnteros)
+                                {
+                                    area.NumberFormat = "General"; // Forza visualmente un número entero sin puntos
+                                }
+                                else
+                                {
+                                    // Lógica Condicional de Interfaz (UI): 
+                                    // Si el valor es exactamente 0, fuerza un "0" limpio. 
+                                    // Para cualquier otro número, delega la renderización a "General" (muestra decimales dinámicamente sin punto huérfano).
+                                    area.NumberFormat = "[=0]0;0.###############";
+                                }
+
                                 primeraCelda = (Excel.Range)area.Cells[1, 1];
-                                string direccionRelativa = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
-                                int filaBaseArea = area.Row;
+                                string dirRel = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
+                                int filaBase = area.Row;
 
                                 // ---------------------------------------------------------------------
-                                // INYECCIÓN 1: DATA VALIDATION (RESTRICCIÓN ACTIVA)
+                                // INGENIERÍA DE FÓRMULAS UNIVERSALES (Lógica Binaria)
+                                // Usamos TRUNC para Enteros y ROUND(x, 10) para un máximo de 10 decimales
                                 // ---------------------------------------------------------------------
-                                string formulaIngles = $"=IF(ISNUMBER({direccionRelativa}), TRUNC({direccionRelativa})={direccionRelativa}, OR(TRIM({direccionRelativa})=\"NS\", TRIM({direccionRelativa})=\"NA\"))";
+                                string formulaBaseIngles = esValidacionEnteros
+                                    ? $"IF(ISNUMBER({dirRel}), AND(TRUNC({dirRel})={dirRel}, {dirRel}>=0), OR(TRIM({dirRel})=\"NS\", TRIM({dirRel})=\"NA\"))"
+                                    : $"IF(ISNUMBER({dirRel}), AND(ROUND({dirRel}, 10)={dirRel}, {dirRel}>=0), OR(TRIM({dirRel})=\"NS\", TRIM({dirRel})=\"NA\"))";
 
-                                celdaDummy = (Excel.Range)wsActual.Cells[filaBaseArea, 16384]; // Columna XFD
-                                celdaDummy.Formula = formulaIngles;
-                                string formulaLocal = celdaDummy.FormulaLocal;
+                                string formulaValidacion = $"={formulaBaseIngles}";
+                                // El formato condicional se dispara si la celda NO está vacía Y la regla principal NO se cumple
+                                string formulaCondicion = $"=AND({dirRel}<>\"\", NOT({formulaBaseIngles}))";
+
+                                // ---------------------------------------------------------------------
+                                // INYECCIÓN 1: DATA VALIDATION (Dummy Cell Trick)
+                                // ---------------------------------------------------------------------
+                                celdaDummy = (Excel.Range)wsActual.Cells[filaBase, 16384];
+                                celdaDummy.Formula = formulaValidacion;
+                                string formulaValidacionLocal = celdaDummy.FormulaLocal;
                                 celdaDummy.Clear();
 
                                 area.Validation.Add(
                                     Excel.XlDVType.xlValidateCustom,
                                     Excel.XlDVAlertStyle.xlValidAlertStop,
                                     Excel.XlFormatConditionOperator.xlBetween,
-                                    formulaLocal,
+                                    formulaValidacionLocal,
                                     Type.Missing);
 
                                 area.Validation.IgnoreBlank = true;
                                 area.Validation.ShowError = true;
-                                area.Validation.ErrorTitle = "Solo números enteros";
-                                area.Validation.ErrorMessage = "El formato de esta celda no admite texto ni decimales.\n\nPor favor, introduce únicamente un número entero (Ej: 1, 15, 100) o las claves de omisión 'NS' y 'NA'.";
+                                area.Validation.ErrorTitle = tituloError;
+                                area.Validation.ErrorMessage = mensajeError;
 
                                 // ---------------------------------------------------------------------
-                                // INYECCIÓN 2: FORMATO CONDICIONAL (CENTINELA PASIVO)
+                                // INYECCIÓN 2: FORMATO CONDICIONAL CENTINELA (Dummy Cell Trick)
                                 // ---------------------------------------------------------------------
-                                // Fórmula inversa: Si NO está vacía Y NO cumple la regla, se pinta de rojo
-                                string formulaCondicionIngles = $"=AND({direccionRelativa}<>\"\", NOT(IF(ISNUMBER({direccionRelativa}), TRUNC({direccionRelativa})={direccionRelativa}, OR(TRIM({direccionRelativa})=\"NS\", TRIM({direccionRelativa})=\"NA\"))))";
-
-                                celdaDummyFmt = (Excel.Range)wsActual.Cells[filaBaseArea, 16384];
-                                celdaDummyFmt.Formula = formulaCondicionIngles;
+                                celdaDummyFmt = (Excel.Range)wsActual.Cells[filaBase, 16384];
+                                celdaDummyFmt.Formula = formulaCondicion;
                                 string formulaCondicionLocal = celdaDummyFmt.FormulaLocal;
                                 celdaDummyFmt.Clear();
 
-                                fcDecimales = (Excel.FormatCondition)area.FormatConditions.Add(
+                                fcSecundario = (Excel.FormatCondition)area.FormatConditions.Add(
                                     Excel.XlFormatConditionType.xlExpression,
                                     Type.Missing,
                                     formulaCondicionLocal);
 
-                                // Estética: Relleno rojo claro con texto rojo oscuro
-                                fcDecimales.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
-                                fcDecimales.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
-                                fcDecimales.StopIfTrue = false;
+                                // Estética: Resalte institucional rojo alertando violación a la regla
+                                fcSecundario.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
+                                fcSecundario.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
+                                fcSecundario.StopIfTrue = false;
                             }
                             finally
                             {
-                                // Prevención estricta de Fugas de Memoria COM en cada ciclo
-                                if (fcDecimales != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fcDecimales);
+                                // Limpieza COM exhaustiva por cada iteración del bucle (Zero Leaks)
+                                if (fcSecundario != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fcSecundario);
                                 if (primeraCelda != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(primeraCelda);
                                 if (celdaDummy != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
                                 if (celdaDummyFmt != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummyFmt);
@@ -353,24 +417,22 @@ namespace SAVCNG_ExcelDNA
                         }
 
                         // =========================================================================
-                        // FASE 3: CONCLUSIÓN Y REGISTRO EN BITÁCORA
+                        // FASE 5: CONCLUSIÓN Y REGISTRO EN BITÁCORA
                         // =========================================================================
                         chkDecimales.Checked = false;
                         string estadoAuditoria = limpiarFormatos ? "Se borraron configuraciones visuales previas." : "Se conservaron colores y bloqueos anteriores.";
-
-                        // Extracción segura del HashSet
                         string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
 
                         AuditoriaCenso.RegistrarAccion(
                             _libroCenso,
                             preguntasDetectadas,
-                            "Validación Decimales", // Etiqueta actualizada para reflejar ambas capas
+                            etiquetaBitacora, // Utiliza dinámicamente "Validación Enteros" o "Validación Decimales"
                             _rangoCapturado.Address.Replace("$", ""),
-                            "Validation + FormatCondition" // Actualización en el motor de la bitácora
+                            "Validation + FormatCondition"
                         );
 
                         MessageBox.Show(this,
-                            $"Validación de números enteros aplicada con éxito en {_rangoCapturado.Areas.Count} bloque(s).\n\n" +
+                            $"{etiquetaBitacora} aplicada con éxito en {_rangoCapturado.Areas.Count} bloque(s).\n\n" +
                             $"• Auditoría: {estadoAuditoria}\n" +
                             $"• Regla Activa: Bloqueo de captura inválida (Data Validation).\n" +
                             $"• Regla Pasiva: Resalte rojo en caso de alteración externa (Format Conditions).",
@@ -385,8 +447,9 @@ namespace SAVCNG_ExcelDNA
                     }
                     finally
                     {
+                        // Restauración de contexto y recolección final
                         if (wsActual != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsActual);
-                        if (excelApp != null) excelApp.ScreenUpdating = true; // Restaurar renderizado visual
+                        if (excelApp != null) excelApp.ScreenUpdating = true;
                     }
                 }
                 // --- VALIDACIÓN Catalogos ---
@@ -860,7 +923,8 @@ namespace SAVCNG_ExcelDNA
                                     rangoAlertaCentral.Font.Size = 9;
                                     rangoAlertaCentral.Font.Bold = true;
                                     rangoAlertaCentral.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
-                                    rangoAlertaCentral.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+                                    rangoAlertaCentral.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                                    rangoAlertaCentral.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
 
                                     string sumaInner = string.Join(",", fragmentosCountIf);
                                     string formulaFinalAlerta = $"=IF(SUM({sumaInner})>0, \"{textoAlerta}\", \"\")";
@@ -947,7 +1011,8 @@ namespace SAVCNG_ExcelDNA
                                         rangoAlertaIndiv.Font.Size = 9;
                                         rangoAlertaIndiv.Font.Bold = true;
                                         rangoAlertaIndiv.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(191, 143, 0));
-                                        rangoAlertaIndiv.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
+                                        rangoAlertaIndiv.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                                        rangoAlertaIndiv.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
 
                                         string addrAbsoluta = area.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
                                         string formulaFinalAlerta = $"=IF(COUNTIF({addrAbsoluta},\"NS\")>0, \"{textoAlerta}\", \"\")";

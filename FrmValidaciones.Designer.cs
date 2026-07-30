@@ -369,7 +369,7 @@ namespace SAVCNG_ExcelDNA
             this.chkDecimales.Name = "chkDecimales";
             this.chkDecimales.Size = new System.Drawing.Size(103, 61);
             this.chkDecimales.TabIndex = 1;
-            this.chkDecimales.Text = "Decimales (Enteros)";
+            this.chkDecimales.Text = "Enteros / Decimales";
             this.chkDecimales.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.chkDecimales.UseVisualStyleBackColor = false;
             this.chkDecimales.CheckedChanged += new System.EventHandler(this.CheckBox_Exclusivo_CheckedChanged);
