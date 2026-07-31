@@ -68,31 +68,44 @@ namespace SAVCNG_ExcelDNA.Core
                 }
             }
         }
-
         // ---------------------------------------------------------------------
         // FASE 3: LECTOR DE PREGUNTAS (STATE MANAGEMENT UNIVERSAL)
         // ---------------------------------------------------------------------
         public static string ObtenerNumeroPregunta(Excel.Range rango)
         {
+            Excel.Worksheet hoja = null;
             try
             {
-                Excel.Worksheet hoja = rango.Worksheet;
+                hoja = rango.Worksheet;
                 int filaInicial = rango.Row;
 
                 // Buscamos desde la fila seleccionada hacia arriba en la columna 1 (Columna A)
                 for (int f = filaInicial; f >= 1; f--)
                 {
-                    Excel.Range celdaA = hoja.Cells[f, 1];
-                    object valor = celdaA.Value2;
-
-                    if (valor != null && !string.IsNullOrEmpty(valor.ToString().Trim()))
+                    Excel.Range celdaA = null;
+                    try
                     {
-                        // Si encontramos algo en la columna A, asumimos que es el número de pregunta
-                        return valor.ToString().Trim();
+                        celdaA = hoja.Cells[f, 1];
+                        object valor = celdaA.Value2;
+
+                        if (valor != null && !string.IsNullOrEmpty(valor.ToString().Trim()))
+                        {
+                            return valor.ToString().Trim();
+                        }
+                    }
+                    finally
+                    {
+                        // PARCHE CRÍTICO ZERO LEAKS: Destruir el puntero en cada paso
+                        LiberarCom(celdaA);
                     }
                 }
             }
             catch { /* Si hay error, devolvemos vacío */ }
+            finally
+            {
+                // Cerramos la referencia de la hoja
+                LiberarCom(hoja);
+            }
 
             return "(no encontrada)";
         }

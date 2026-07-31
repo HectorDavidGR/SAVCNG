@@ -1,10 +1,11 @@
+using SAVCNG_ExcelDNA.Core;
+using SAVCNG_ExcelDNA.Validaciones;
 using System;
 using System.Drawing;
-using System.Windows.Forms;
-using System.Text.RegularExpressions;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel; // Importante para entenderse con Excel
-using SAVCNG_ExcelDNA.Validaciones;
 
 namespace SAVCNG_ExcelDNA
 {
@@ -145,7 +146,15 @@ namespace SAVCNG_ExcelDNA
                 // 3. Verificamos que se trate de un rango de celdas válido
                 if (seleccion is Excel.Range)
                 {
-                    // 4. Guardamos la selección en la memoria global del Add-In
+                    // =========================================================================
+                    // PARCHE ZERO LEAKS: Liberamos el puntero anterior antes de sobreescribirlo
+                    // =========================================================================
+                    if (_rangoCapturado != null)
+                    {
+                        ExcelHelper.LiberarCom(_rangoCapturado);
+                    }
+
+                    // 4. Guardamos la nueva selección en la memoria global del Add-In
                     _rangoCapturado = (Excel.Range)seleccion;
 
                     // =========================================================================
@@ -156,13 +165,21 @@ namespace SAVCNG_ExcelDNA
                     // Iteramos sobre cada sub-bloque (área) seleccionado con la tecla CTRL
                     foreach (Excel.Range area in _rangoCapturado.Areas)
                     {
-                        // Reutilizamos tu método original enviando área por área
-                        string pregunta = ObtenerNumeroPregunta(area);
-
-                        // Evitamos duplicados en la interfaz si el usuario seleccionó varias áreas de la misma pregunta
-                        if (!preguntasDetectadas.Contains(pregunta))
+                        try
                         {
-                            preguntasDetectadas.Add(pregunta);
+                            // Reutilizamos el método de la Fachada enviando área por área
+                            string pregunta = ExcelHelper.ObtenerNumeroPregunta(area);
+
+                            // Evitamos duplicados en la interfaz
+                            if (!preguntasDetectadas.Contains(pregunta))
+                            {
+                                preguntasDetectadas.Add(pregunta);
+                            }
+                        }
+                        finally
+                        {
+                            // PARCHE ZERO LEAKS: Destrucción inmediata del área iterada
+                            ExcelHelper.LiberarCom(area);
                         }
                     }
 
@@ -172,14 +189,11 @@ namespace SAVCNG_ExcelDNA
                     // =========================================================================
                     // 6. ACTUALIZACIÓN DE LA EXPERIENCIA DE USUARIO (UX/UI)
                     // =========================================================================
-                    // Limpiamos los símbolos de anclaje absoluto ($) para hacer la lectura más amigable
                     string direccionLimpia = _rangoCapturado.Address.Replace("$", "");
 
-                    // Actualizamos los Labels de la interfaz
                     lblPregunta.Text = "Pregunta(s) detectada(s): " + textoPreguntas;
                     lblRangoSeleccionado.Text = "Rango seleccionado: " + direccionLimpia;
 
-                    // Mostramos un resumen claro en el MessageBox
                     MessageBox.Show(this,
                         $"Se capturó correctamente la selección.\n\n" +
                         $"• Coordenadas: {direccionLimpia}\n" +
@@ -189,14 +203,12 @@ namespace SAVCNG_ExcelDNA
                 }
                 else
                 {
-                    // UX: Prevención de errores si el usuario selecciona gráficos, formas o imágenes
                     MessageBox.Show(this, "Por favor, selecciona celdas de Excel, no imágenes ni gráficos.",
                                     "Aviso de Captura", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 }
             }
             catch (Exception ex)
             {
-                // Contención de errores críticos
                 MessageBox.Show(this, "Ocurrió un error al capturar en memoria: " + ex.Message,
                                 "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -303,32 +315,6 @@ namespace SAVCNG_ExcelDNA
                 MessageBox.Show(this,"Ocurrió un error al aplicar el formato: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        // Función para detectar el número de pregunta en la columna A (Como en tu App_Form_Interface)
-        private string ObtenerNumeroPregunta(Excel.Range rango)
-        {
-            try
-            {
-                Excel.Worksheet hoja = rango.Worksheet;
-                int filaInicial = rango.Row;
-
-                // Buscamos desde la fila seleccionada hacia arriba en la columna 1 (Columna A)
-                for (int f = filaInicial; f >= 1; f--)
-                {
-                    Excel.Range celdaA = hoja.Cells[f, 1];
-                    object valor = celdaA.Value2;
-
-                    if (valor != null && !string.IsNullOrEmpty(valor.ToString().Trim()))
-                    {
-                        // Si encontramos algo en la columna A, asumimos que es el número de pregunta
-                        return valor.ToString().Trim();
-                    }
-                }
-            }
-            catch { /* Si hay error, devolvemos vacío */ }
-
-            return "(no encontrada)";
-        }
-
         private void chkCatalogos_CheckedChanged(object sender, EventArgs e)
         {
             // Solo actuamos si el usuario MARCA la casilla
@@ -440,7 +426,6 @@ namespace SAVCNG_ExcelDNA
         }
 
         // EVENTO: Extracción, Clonación y Guardado Silencioso de la Bitácora
-        // =========================================================================
         private void btnDescargarBitacora_Click(object sender, EventArgs e)
         {
             Excel.Worksheet wsLog = null;
@@ -544,7 +529,6 @@ namespace SAVCNG_ExcelDNA
                 Cursor.Current = Cursors.Default;
             }
         }
-
         // --- INICIO DE EVENTOS PARA PESTAÑA REVISIÓN/UTILIDADES ---
         //Funcion para bloqueo de hojas con contraseña
         private void btnBloqueo_Click(object sender, EventArgs e)
