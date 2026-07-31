@@ -76,6 +76,8 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Utilidades\DescargarBitacoraService.cs" />
+    <Compile Include="Utilidades\IOperacionLibro.cs" />
     <Compile Include="Validaciones\ValidacionBlancos.cs" />
     <Compile Include="Validaciones\ValidacionBloqueos.cs" />
     <Compile Include="Validaciones\ValidacionCatalogos.cs" />

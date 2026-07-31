@@ -425,109 +425,18 @@ namespace SAVCNG_ExcelDNA
             }
         }
 
-        // EVENTO: Extracción, Clonación y Guardado Silencioso de la Bitácora
+        // Descargar Bitácora
         private void btnDescargarBitacora_Click(object sender, EventArgs e)
         {
-            Excel.Worksheet wsLog = null;
-            Excel.Workbook nuevoLibro = null;
-            Excel.Worksheet wsCopia = null;
-            Excel.Application xlApp = null;
-            Excel.Worksheet hojaOriginal = null; // Puntero de preservación de estado
+            // 1. Validamos que el libro exista antes de pasarlo al servicio
+            if (_libroCenso == null) return;
 
-            try
-            {
-                // 1. UX: Indicamos que el sistema está trabajando en segundo plano
-                Cursor.Current = Cursors.WaitCursor;
-                xlApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+            // 2. Instanciamos el puente de comunicación COM con ExcelDNA
+            Microsoft.Office.Interop.Excel.Application excelApp = (Microsoft.Office.Interop.Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
 
-                // 2. CAPTURA DE ESTADO: Guardamos la hoja donde está parado el usuario
-                hojaOriginal = (Excel.Worksheet)_libroCenso.ActiveSheet;
-
-                // 3. Rastreamos la base de datos embebida
-                foreach (Excel.Worksheet sheet in _libroCenso.Worksheets)
-                {
-                    if (sheet.Name == "SAVCNG_SysLog")
-                    {
-                        wsLog = sheet;
-                        break;
-                    }
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(sheet);
-                }
-
-                if (wsLog == null)
-                {
-                    MessageBox.Show(this, "Aún no existen registros de validaciones en este censo.", "Bitácora Vacía", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                // 4. MODO SILENCIOSO: Apagamos pantalla y bloqueamos cuadros de diálogo de Excel
-                xlApp.ScreenUpdating = false;
-                xlApp.DisplayAlerts = false; // Evita preguntas de sobrescritura o compatibilidad
-
-                // 5. Clonación en memoria RAM
-                nuevoLibro = xlApp.Workbooks.Add(Type.Missing);
-                wsLog.Visible = Excel.XlSheetVisibility.xlSheetVisible;
-                wsLog.Copy(Before: nuevoLibro.Worksheets[1]);
-                wsLog.Visible = Excel.XlSheetVisibility.xlSheetVeryHidden; // Restauramos la seguridad de origen
-
-                // 6. Configuración visual del archivo a exportar
-                wsCopia = (Excel.Worksheet)nuevoLibro.Worksheets[1];
-                wsCopia.Name = "Auditoria_" + DateTime.Now.ToString("ddMMyy");
-                wsCopia.Columns.AutoFit();
-                wsCopia.Application.ActiveWindow.SplitRow = 1;
-                wsCopia.Application.ActiveWindow.FreezePanes = true;
-
-                // =========================================================================
-                // 7. MOTOR DE I/O: RESOLUCIÓN DE RUTA Y GUARDADO AUTOMÁTICO
-                // =========================================================================
-                // Obtenemos la ruta universal de la carpeta de descargas del usuario de Windows
-                string rutaPerfil = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string rutaDescargas = System.IO.Path.Combine(rutaPerfil, "Downloads");
-
-                // Armamos el nombre del archivo con Timestamp para evitar colisiones
-                string nombreArchivo = $"SAVCNG_Bitacora_{DateTime.Now.ToString("yyyyMMdd_HHmmss")}.xlsx";
-                string rutaCompleta = System.IO.Path.Combine(rutaDescargas, nombreArchivo);
-
-                // Guardamos el libro usando el formato estándar de Excel actual (OpenXML)
-                nuevoLibro.SaveAs(rutaCompleta, Excel.XlFileFormat.xlOpenXMLWorkbook, Type.Missing, Type.Missing,
-                                  Type.Missing, Type.Missing, Excel.XlSaveAsAccessMode.xlNoChange,
-                                  Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing);
-
-                // Cerramos el libro temporal inmediatamente (false = no preguntar si guarda cambios)
-                nuevoLibro.Close(false);
-
-                // 8. RESTAURACIÓN DEL ESTADO EN EL LIBRO ORIGEN
-                // Al cerrar el libro nuevo, Excel puede perder el foco. Lo forzamos a volver a la hoja original.
-                if (hojaOriginal != null)
-                {
-                    hojaOriginal.Activate();
-                }
-
-                // 9. Notificación UX de éxito orientada a la nueva arquitectura
-                MessageBox.Show(this,
-                    $"La bitácora ha sido exportada de forma automática.\n\nPuedes encontrar el archivo en tu carpeta de Descargas:\n\n{nombreArchivo}",
-                    "SAVCNG - Descarga Exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, "Error crítico al intentar guardar la bitácora: " + ex.Message, "Fallo de I/O", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                // 10. Limpieza estricta del Garbage Collector (COM)
-                if (hojaOriginal != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(hojaOriginal);
-                if (wsCopia != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsCopia);
-                if (nuevoLibro != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(nuevoLibro);
-                if (wsLog != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(wsLog);
-
-                // 11. Restauración de los motores de Excel
-                if (xlApp != null)
-                {
-                    xlApp.DisplayAlerts = true; // MUY IMPORTANTE: Devolver las alertas a su estado original
-                    xlApp.ScreenUpdating = true;
-                }
-                Cursor.Current = Cursors.Default;
-            }
+            // 3. Inyectamos la dependencia y ejecutamos el servicio aislado
+            SAVCNG_ExcelDNA.Utilidades.IOperacionLibro servicioBitacora = new SAVCNG_ExcelDNA.Utilidades.DescargarBitacoraService();
+            servicioBitacora.Ejecutar(excelApp, _libroCenso);
         }
         // --- INICIO DE EVENTOS PARA PESTAÑA REVISIÓN/UTILIDADES ---
         //Funcion para bloqueo de hojas con contraseña
