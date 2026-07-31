@@ -76,10 +76,12 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Utilidades\AplicarColoresService.cs" />
     <Compile Include="Utilidades\AplicarFormatoBloqueoService.cs" />
     <Compile Include="Utilidades\DescargarBitacoraService.cs" />
     <Compile Include="Utilidades\DesprotegerLibroService.cs" />
     <Compile Include="Utilidades\IOperacionLibro.cs" />
+    <Compile Include="Utilidades\LimpiarColoresService.cs" />
     <Compile Include="Utilidades\ProtegerLibroService.cs" />
     <Compile Include="Validaciones\ValidacionBlancos.cs" />
     <Compile Include="Validaciones\ValidacionBloqueos.cs" />
