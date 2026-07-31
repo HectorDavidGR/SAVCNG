@@ -79,6 +79,7 @@
     <Compile Include="Validaciones\ValidacionCatalogos.cs" />
     <Compile Include="Validaciones\ValidacionDecimales.cs" />
     <Compile Include="Validaciones\IValidacionExcel.cs" />
+    <Compile Include="Validaciones\ValidacionNS.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="documentacion\CHANGELOG_v2.2.1.md" />
