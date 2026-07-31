@@ -76,10 +76,16 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Validaciones\ValidacionBlancos.cs" />
+    <Compile Include="Validaciones\ValidacionBloqueos.cs" />
     <Compile Include="Validaciones\ValidacionCatalogos.cs" />
     <Compile Include="Validaciones\ValidacionDecimales.cs" />
     <Compile Include="Validaciones\IValidacionExcel.cs" />
+    <Compile Include="Validaciones\ValidacionEspecifique.cs" />
+    <Compile Include="Validaciones\ValidacionFechas.cs" />
+    <Compile Include="Validaciones\ValidacionFormatoTexto.cs" />
     <Compile Include="Validaciones\ValidacionNS.cs" />
+    <Compile Include="Validaciones\ValidacionSumas.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="documentacion\CHANGELOG_v2.2.1.md" />
