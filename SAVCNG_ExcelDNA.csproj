@@ -76,6 +76,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Utilidades\AplicarFormatoBloqueoService.cs" />
     <Compile Include="Utilidades\DescargarBitacoraService.cs" />
     <Compile Include="Utilidades\DesprotegerLibroService.cs" />
     <Compile Include="Utilidades\IOperacionLibro.cs" />

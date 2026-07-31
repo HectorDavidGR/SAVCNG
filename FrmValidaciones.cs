@@ -494,164 +494,19 @@ namespace SAVCNG_ExcelDNA
         //Funcion para aplicar un color a todas las celdas de todas las hojas para revisión de bloqueos
         private void btnAplicarFormato_Click(object sender, EventArgs e)
         {
-            // 1. Validar que haya un censo cargado en memoria
+            // 1. Validaciones puras de UI
             if (_libroCenso == null)
             {
                 MessageBox.Show(this, "No hay ningún censo cargado en memoria.", "Operación Denegada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            Excel.Application excelApp = null;
-            try
-            {
-                excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+            // 2. Instanciación del puente COM
+            Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
 
-                // Apagamos la actualización de pantalla para que el barrido sea instantáneo
-                excelApp.ScreenUpdating = false;
-
-                // =========================================================================
-                // FASE 1: AUDITORÍA DE HOJAS PROTEGIDAS (PREVENCIÓN DE CRASH)
-                // =========================================================================
-                System.Collections.Generic.List<string> hojasBloqueadas = new System.Collections.Generic.List<string>();
-
-                foreach (Excel.Worksheet wsCheck in _libroCenso.Worksheets)
-                {
-                    if (wsCheck.ProtectContents || wsCheck.ProtectDrawingObjects || wsCheck.ProtectScenarios)
-                    {
-                        hojasBloqueadas.Add("• " + wsCheck.Name);
-                    }
-                    // Liberación estricta de memoria COM
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(wsCheck);
-                }
-
-                // Si hay hojas bloqueadas, abortamos y le avisamos al usuario amigablemente
-                if (hojasBloqueadas.Count > 0)
-                {
-                    string listaHojas = string.Join("\n", hojasBloqueadas);
-                    MessageBox.Show(this,
-                        "No se puede aplicar el formato de color porque el libro contiene hojas protegidas:\n\n" +
-                        listaHojas + "\n\n" +
-                        "Desprotege estas hojas (desde la pestaña Revisión) y vuelve a intentarlo.",
-                        "Validación Interrumpida", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                    return;
-                }
-
-                // =========================================================================
-                // FASE 2: INYECCIÓN DE FORMATO CONDICIONAL POR HOJA
-                // =========================================================================
-                int hojasModificadas = 0;
-
-                foreach (Excel.Worksheet ws in _libroCenso.Worksheets)
-                {
-                    Excel.Range celdasHoja = null;
-                    Excel.FormatConditions formatos = null;
-                    Excel.Range celdaDummy = null;
-
-                    try
-                    {
-                        celdasHoja = ws.Cells;
-                        formatos = celdasHoja.FormatConditions;
-                        bool existe = false;
-
-                        // 2.1 Búsqueda Inversa para verificar si la regla ya existe
-                        for (int i = formatos.Count; i >= 1; i--)
-                        {
-                            Excel.FormatCondition fc = null;
-                            try
-                            {
-                                object objFc = formatos[i];
-
-                                // En C#, debemos verificar el tipo del objeto COM antes de leerlo
-                                if (objFc is Excel.FormatCondition)
-                                {
-                                    fc = (Excel.FormatCondition)objFc;
-
-                                    if (fc.Type == (int)Excel.XlFormatConditionType.xlExpression)
-                                    {
-                                        string formulaCondicion = "";
-                                        try
-                                        {
-                                            formulaCondicion = fc.Formula1;
-                                        }
-                                        catch { /* Silenciamos si Excel deniega la lectura de esa fórmula específica */ }
-
-                                        if (!string.IsNullOrEmpty(formulaCondicion))
-                                        {
-                                            // Limpiamos espacios y pasamos a mayúsculas para hacer una comparación universal
-                                            string fLimpia = formulaCondicion.Replace(" ", "").ToUpper();
-
-                                            // Cubrimos tanto "CELDA" (Español) como "CELL" (Inglés)
-                                            if (fLimpia.Contains("CELDA(\"PROTECT\"") || fLimpia.Contains("CELL(\"PROTECT\""))
-                                            {
-                                                existe = true;
-                                                break; // Ya existe, rompemos el ciclo
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                // Ignoramos errores de lectura de reglas aisladas
-                            }
-                            finally
-                            {
-                                if (fc != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fc);
-                            }
-                        }
-
-                        // 2.2 Si no la encontró, la inyectamos
-                        if (!existe)
-                        {
-                            // TRUCO ARQUITECTÓNICO: Traducir la fórmula al idioma de la PC local usando una celda oculta.
-                            // Esto evita el clásico error de sintaxis al inyectar código rígido en un Excel en español.
-                            celdaDummy = ws.Cells[1048576, 16384]; // Última celda XFD1048576
-                            celdaDummy.Formula = "=CELL(\"protect\",A1)"; // La metemos en inglés universal
-                            string formulaLocal = celdaDummy.FormulaLocal; // La extraemos en español (o el idioma del usuario)
-                            celdaDummy.Clear();
-
-                            Excel.FormatCondition nuevaRegla = (Excel.FormatCondition)formatos.Add(
-                                Excel.XlFormatConditionType.xlExpression,
-                                Type.Missing,
-                                formulaLocal);
-
-                            // Aplicamos el color RGB(255, 230, 153) que equivale al amarillo de tu macro original
-                            nuevaRegla.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 230, 153));
-
-                            System.Runtime.InteropServices.Marshal.ReleaseComObject(nuevaRegla);
-                            hojasModificadas++;
-                        }
-                    }
-                    finally
-                    {
-                        // Limpieza absoluta del Garbage Collector en cada ciclo de la hoja
-                        if (celdaDummy != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdaDummy);
-                        if (formatos != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(formatos);
-                        if (celdasHoja != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdasHoja);
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(ws);
-                    }
-                }
-
-                // =========================================================================
-                // FASE 3: CONCLUSIÓN UX
-                // =========================================================================
-                MessageBox.Show(this,
-                    $"Formato de color (Celdas Bloqueadas) aplicado en todo el libro.\n\n" +
-                    $"Se aplicó exitosamente en {hojasModificadas} hoja(s) que no contaban con él.",
-                    "SAVCNG - Macro de Colores", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, "Ocurrió un error crítico al aplicar la macro de colores: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                if (excelApp != null)
-                {
-                    // Restauramos SIEMPRE la actualización visual al terminar o fallar
-                    excelApp.ScreenUpdating = true;
-                }
-            }
+            // 3. Inyección y ejecución del servicio aislado
+            SAVCNG_ExcelDNA.Utilidades.IOperacionLibro servicioFormato = new SAVCNG_ExcelDNA.Utilidades.AplicarFormatoBloqueoService();
+            servicioFormato.Ejecutar(excelApp, _libroCenso);
         }
 
         //Funcion para quitar el formato aplicado por btnAplicarFormato_Click
