@@ -62,6 +62,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AuditoriaCenso.cs" />
+    <Compile Include="Core\ExcelHelper.cs" />
     <Compile Include="FrmValidaciones.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -75,6 +76,8 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Validaciones\ValidacionDecimales.cs" />
+    <Compile Include="Validaciones\IValidacionExcel.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="documentacion\CHANGELOG_v2.2.1.md" />
