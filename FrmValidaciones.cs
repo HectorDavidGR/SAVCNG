@@ -314,61 +314,6 @@ namespace SAVCNG_ExcelDNA
                 MessageBox.Show(this,"Ocurrió un error al aplicar el formato: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        private void chkCatalogos_CheckedChanged(object sender, EventArgs e)
-        {
-            // Solo actuamos si el usuario MARCA la casilla
-            if (chkCatalogos.Checked)
-            {
-                // Revisamos que no se haya saltado el paso 1 (Capturar rango)
-                if (_libroCenso == null || _rangoCapturado == null)
-                {
-                    MessageBox.Show(this,"Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    chkCatalogos.Checked = false; // Desmarcamos la casilla
-                }
-                // ¡Y listo! No hacemos nada más aquí, dejamos que el botón Aplicar haga el trabajo duro.
-            }
-        }
-
-        private void chkNS_CheckedChanged(object sender, EventArgs e)
-        {
-            // Solo actuamos si el usuario MARCA la casilla
-            if (chkNS.Checked)
-            {
-                // Revisamos que no se haya saltado el paso 1 (Capturar rango)
-                if (_libroCenso == null || _rangoCapturado == null)
-                {
-                    MessageBox.Show(this,"Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    chkNS.Checked = false; // Desmarcamos la casilla
-                }
-            }
-        }
-
-        private void chkBlancos_CheckedChanged(object sender, EventArgs e)
-        {
-            if (chkBlancos.Checked)
-            {
-                // Validamos la regla de negocio: Nada ocurre si no se ha mapeado el terreno previamente
-                if (_libroCenso == null || _rangoCapturado == null)
-                {
-                    MessageBox.Show(this,"Operación denegada: Carga un censo y define el rango de memoria primero.", "Advertencia Arquitectónica", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    chkBlancos.Checked = false;
-                }
-            }
-        }
-
-        private void chkFechas_CheckedChanged(object sender, EventArgs e)
-        {
-            // SI ==> MARCA la casilla
-            if (chkFechas.Checked) // <-- Corregido: antes decía chkAños.Checked
-            {
-                // Revisamos que no se haya saltado el paso 1 (Capturar rango)
-                if (_libroCenso == null || _rangoCapturado == null)
-                {
-                    MessageBox.Show(this,"Primero carga un censo y captura un rango con el botón.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    chkFechas.Checked = false; // <-- Corregido: antes decía chkAños.Checked
-                }
-            }
-        }
 
         private void CargarEstadoDelCenso()
         {
@@ -512,143 +457,19 @@ namespace SAVCNG_ExcelDNA
         //Funcion para quitar el formato aplicado por btnAplicarFormato_Click
         private void btnLimpiarFormato_Click(object sender, EventArgs e)
         {
-            // 1. Validar que haya un censo cargado en memoria
+            // 1. Validaciones puras de UI (Responsabilidad del Formulario)
             if (_libroCenso == null)
             {
                 MessageBox.Show(this, "No hay ningún censo cargado en memoria.", "Operación Denegada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            Excel.Application excelApp = null;
-            try
-            {
-                excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+            // 2. Instanciación del puente COM
+            Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
 
-                // Apagamos la actualización de pantalla para un borrado instantáneo y silencioso
-                excelApp.ScreenUpdating = false;
-
-                // =========================================================================
-                // FASE 1: AUDITORÍA DE HOJAS PROTEGIDAS (PREVENCIÓN DE CRASH)
-                // =========================================================================
-                System.Collections.Generic.List<string> hojasBloqueadas = new System.Collections.Generic.List<string>();
-
-                foreach (Excel.Worksheet wsCheck in _libroCenso.Worksheets)
-                {
-                    if (wsCheck.ProtectContents || wsCheck.ProtectDrawingObjects || wsCheck.ProtectScenarios)
-                    {
-                        hojasBloqueadas.Add("• " + wsCheck.Name);
-                    }
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(wsCheck);
-                }
-
-                // Si la hoja está bloqueada, Excel no nos dejará borrar la regla
-                if (hojasBloqueadas.Count > 0)
-                {
-                    string listaHojas = string.Join("\n", hojasBloqueadas);
-                    MessageBox.Show(this,
-                        "No se puede limpiar el formato de color porque el libro contiene hojas protegidas:\n\n" +
-                        listaHojas + "\n\n" +
-                        "Desprotege estas hojas (desde la pestaña Revisión) y vuelve a intentarlo.",
-                        "Operación Interrumpida", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                    return;
-                }
-
-                // =========================================================================
-                // FASE 2: BÚSQUEDA Y ELIMINACIÓN DE LA REGLA
-                // =========================================================================
-                int hojasLimpiadas = 0;
-
-                foreach (Excel.Worksheet ws in _libroCenso.Worksheets)
-                {
-                    Excel.Range celdasHoja = null;
-                    Excel.FormatConditions formatos = null;
-                    bool hojaModificada = false;
-
-                    try
-                    {
-                        celdasHoja = ws.Cells;
-                        formatos = celdasHoja.FormatConditions;
-
-                        // RECORRIDO INVERSO OBLIGATORIO: Del último formato al primero
-                        for (int i = formatos.Count; i >= 1; i--)
-                        {
-                            Excel.FormatCondition fc = null;
-                            try
-                            {
-                                object objFc = formatos[i];
-
-                                if (objFc is Excel.FormatCondition)
-                                {
-                                    fc = (Excel.FormatCondition)objFc;
-
-                                    if (fc.Type == (int)Excel.XlFormatConditionType.xlExpression)
-                                    {
-                                        string formulaCondicion = "";
-                                        try { formulaCondicion = fc.Formula1; } catch { }
-
-                                        if (!string.IsNullOrEmpty(formulaCondicion))
-                                        {
-                                            string fLimpia = formulaCondicion.Replace(" ", "").ToUpper();
-
-                                            // Evaluamos si es la regla de nuestro botón "Aplicar"
-                                            if (fLimpia.Contains("CELDA(\"PROTECT\"") || fLimpia.Contains("CELL(\"PROTECT\""))
-                                            {
-                                                // ¡La encontramos! La destruimos
-                                                fc.Delete();
-                                                hojaModificada = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                // Ignoramos errores aislados de lectura/borrado
-                            }
-                            finally
-                            {
-                                if (fc != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(fc);
-                            }
-                        }
-
-                        if (hojaModificada)
-                        {
-                            hojasLimpiadas++;
-                        }
-                    }
-                    finally
-                    {
-                        if (formatos != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(formatos);
-                        if (celdasHoja != null) System.Runtime.InteropServices.Marshal.ReleaseComObject(celdasHoja);
-                        System.Runtime.InteropServices.Marshal.ReleaseComObject(ws);
-                    }
-                }
-
-                // =========================================================================
-                // FASE 3: CONCLUSIÓN UX
-                // =========================================================================
-                if (hojasLimpiadas > 0)
-                {
-                    MessageBox.Show(this,
-                        $"El formato de color (Celdas Bloqueadas) fue eliminado correctamente.\n\n" +
-                        $"Se limpiaron {hojasLimpiadas} hoja(s) del libro.",
-                        "SAVCNG - Limpieza Exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    MessageBox.Show(this,
-                        "No se encontró el formato de color en ninguna hoja del libro.\n\nEl censo ya está limpio.",
-                        "SAVCNG - Sin Cambios", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, "Ocurrió un error crítico al limpiar los colores: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                if (excelApp != null) excelApp.ScreenUpdating = true;
-            }
+            // 3. Inyección y ejecución del servicio aislado
+            SAVCNG_ExcelDNA.Utilidades.IOperacionLibro servicioLimpiezaFormato = new SAVCNG_ExcelDNA.Utilidades.LimpiarFormatoBloqueoService();
+            servicioLimpiezaFormato.Ejecutar(excelApp, _libroCenso);
         }
 
         //Funcion para aplicar Colorimetria a las validaciones para identificarlas
