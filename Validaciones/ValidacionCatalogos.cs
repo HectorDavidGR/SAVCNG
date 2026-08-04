@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Consumimos la Fachada
+using SAVCNG_ExcelDNA.Core; // Consumimos la Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionCatalogos : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO AHORA EXIGE DEVOLVER EL DTO
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             // PARCHE ZERO LEAKS: Envolvemos TODO en un Try-Catch-Finally maestro
             try
@@ -15,6 +16,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 string formulaOpciones = "";
                 string separador = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
 
+                // Interacción permitida: Pregunta de decisión al usuario
                 DialogResult tipoEntrada = MessageBox.Show(
                     "¿Deseas escribir el(los) valor(es) del catálogo manualmente (ej: un solo valor como 'X' o varios como '1,2,9')?\n\n" +
                     "SÍ: Escribir el(los) valor(es) directamente.\n" +
@@ -25,26 +27,43 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (tipoEntrada == DialogResult.Yes)
                 {
+                    // ==========================================================
+                    // CASO 1: ENTRADA MANUAL (Ideal para "X")
+                    // ==========================================================
                     object resultadoTexto = excelApp.InputBox(
                         "Escribe el(los) valor(es) para tu lista desplegable.\nNOTA: Si son varias deberan estar separadas por comas):",
                         "Escribir Opciones",
                         Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
-                    if (resultadoTexto is bool && (bool)resultadoTexto == false) return;
+                    // ABORTO: Empaquetado en el DTO
+                    if (resultadoTexto is bool && (bool)resultadoTexto == false)
+                    {
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Configuración manual cancelada por el usuario.", AlertaInyectada = false };
+                    }
 
                     string textoEscrito = resultadoTexto.ToString().Trim();
-                    if (string.IsNullOrEmpty(textoEscrito)) return;
+                    if (string.IsNullOrEmpty(textoEscrito))
+                    {
+                        return new ResultadoValidacion { Exito = false, Mensaje = "No se ingresó ningún valor. Proceso abortado.", AlertaInyectada = false };
+                    }
 
+                    // Reemplaza comas por el separador correcto de la PC
                     formulaOpciones = textoEscrito.Replace(",", separador);
                 }
                 else
                 {
+                    // ==========================================================
+                    // CASO 2: SELECCIÓN DE CELDAS
+                    // ==========================================================
                     object resultadoInput = excelApp.InputBox(
                         "Selecciona el rango de opciones o la celda que contiene el catálogo (ej: 1,2,9):",
                         "Seleccionar Origen del Catálogo",
                         Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
 
-                    if (resultadoInput is bool && (bool)resultadoInput == false) return;
+                    if (resultadoInput is bool && (bool)resultadoInput == false)
+                    {
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Selección de rango cancelada por el usuario.", AlertaInyectada = false };
+                    }
 
                     Excel.Range rangoOrigen = null;
                     try
@@ -63,7 +82,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question);
 
-                            if (respuesta == DialogResult.Cancel) return;
+                            if (respuesta == DialogResult.Cancel)
+                            {
+                                return new ResultadoValidacion { Exito = false, Mensaje = "Extracción automática cancelada.", AlertaInyectada = false };
+                            }
 
                             Excel.Range primeraCeldaOrigen = null;
                             string textoCelda = "";
@@ -80,8 +102,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                             if (string.IsNullOrWhiteSpace(textoCelda))
                             {
-                                MessageBox.Show("La celda origen está vacía. No se puede extraer el catálogo.", "Aviso Arquitectónico", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return;
+                                return new ResultadoValidacion { Exito = false, Mensaje = "La celda origen está vacía. No se puede extraer el catálogo.", AlertaInyectada = false };
                             }
 
                             string[] pedacitos = textoCelda.Split(new char[] { '.', ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
@@ -113,14 +134,21 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                 MessageBoxButtons.OKCancel,
                                 MessageBoxIcon.Question);
 
-                            if (respuestaRango == DialogResult.Cancel) return;
+                            if (respuestaRango == DialogResult.Cancel)
+                            {
+                                return new ResultadoValidacion { Exito = false, Mensaje = "Extracción múltiple cancelada.", AlertaInyectada = false };
+                            }
 
                             System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
+                            int totalCeldasOrigen = rangoOrigen.Cells.Count;
 
-                            foreach (Excel.Range celda in rangoOrigen.Cells)
+                            // RASTREO ZERO LEAKS: Convertido de foreach a for para proteger la RAM
+                            for (int k = 1; k <= totalCeldasOrigen; k++)
                             {
+                                Excel.Range celda = null;
                                 try
                                 {
+                                    celda = (Excel.Range)rangoOrigen.Cells[k];
                                     string textoCelda = celda.Text?.ToString() ?? "";
                                     string soloNumeros = "";
 
@@ -142,8 +170,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                             if (listaLimpios.Count == 0)
                             {
-                                MessageBox.Show("No se encontraron valores numéricos en el rango seleccionado.\nNo se puede crear el catálogo.", "Aviso Arquitectónico", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return;
+                                return new ResultadoValidacion { Exito = false, Mensaje = "No se encontraron valores numéricos en el rango seleccionado.\nNo se puede crear el catálogo.", AlertaInyectada = false };
                             }
 
                             formulaOpciones = string.Join(separador, listaLimpios);
@@ -155,6 +182,9 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     }
                 }
 
+                // ==========================================================
+                // PREVENCIÓN DE SOBRESCRITURA DE VALIDACIÓN
+                // ==========================================================
                 bool tieneValidacionPrevia = false;
                 Excel.Range primeraCeldaRango = null;
 
@@ -182,27 +212,42 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Warning);
 
-                    if (sobrescribir == DialogResult.No) return;
+                    if (sobrescribir == DialogResult.No)
+                    {
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Operación cancelada para preservar la validación existente.", AlertaInyectada = false };
+                    }
                 }
 
+                // =========================================================================
+                // RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
+                // =========================================================================
                 System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                int totalAreas = rangoCapturado.Areas.Count;
 
-                for (int i = 1; i <= rangoCapturado.Areas.Count; i++)
+                for (int i = 1; i <= totalAreas; i++)
                 {
-                    Excel.Range areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
-                    string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
-
-                    if (!string.IsNullOrEmpty(idPregunta))
+                    Excel.Range areaIndividual = null;
+                    try
                     {
-                        preguntasUnicas.Add(idPregunta);
-                    }
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
 
-                    ExcelHelper.LiberarCom(areaIndividual);
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
+                    }
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual);
+                    }
                 }
 
                 string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
 
-                // Ejecutamos la inyección final
+                // ==========================================================
+                // APLICAR LA VALIDACIÓN Y REGISTRO EN BITÁCORA
+                // ==========================================================
                 rangoCapturado.Validation.Delete();
 
                 rangoCapturado.Validation.Add(
@@ -223,11 +268,23 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Data Validation"
                 );
 
-                MessageBox.Show("¡Validación de catálogo aplicada con éxito!", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // ÉXITO TOTAL: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = true,
+                    Mensaje = "¡Validación de catálogo aplicada con éxito!",
+                    AlertaInyectada = true
+                };
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error crítico al aplicar la validación: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // ERROR CRÍTICO: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = "Error crítico al aplicar la validación de catálogos: " + ex.Message,
+                    AlertaInyectada = false
+                };
             }
             finally
             {

@@ -216,102 +216,60 @@ namespace SAVCNG_ExcelDNA
         private void btnAplicar_Click(object sender, EventArgs e)
         {
             Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
-            string separador = excelApp.International[Excel.XlApplicationInternational.xlListSeparator].ToString();
 
             try
             {
-                // Primero verificamos que el usuario no haya olvidado capturar un rango
+                // 1. Verificamos que el usuario no haya olvidado capturar un rango
                 if (_rangoCapturado == null)
                 {
-                    MessageBox.Show(this,"¡Espera! Primero debes capturar un rango.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    return; // Detenemos el código aquí
+                    MessageBox.Show(this, "¡Espera! Primero debes capturar un rango.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    return;
                 }
-                //=====================================================================================================
-                // --- VALIDACIÓN DECIMALES ---
-                else if (chkDecimales.Checked == true)
-                {
-                    // Invocamos la Estrategia aislada
-                    IValidacionExcel validacion = new SAVCNG_ExcelDNA.Validaciones.ValidacionDecimales();
-                    validacion.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
 
-                    chkDecimales.Checked = false; // Desmarcamos en UI tras terminar
-                }
-                // --- VALIDACIÓN Catalogos ---
-                else if (chkCatalogos.Checked == true)
-                {
-                    IValidacionExcel validacionCatalogos = new ValidacionCatalogos();
-                    validacionCatalogos.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
+                // 2. ENRUTADOR DE ESTRATEGIAS: Determinamos qué clase instanciar
+                IValidacionExcel estrategia = null;
+                CheckBox chkActivo = null;
 
-                    chkCatalogos.Checked = false;
-                }
-                // --- VALIDACIÓN NS ---
-                else if (chkNS.Checked == true)
-                {
-                    IValidacionExcel validacionNS = new ValidacionNS();
-                    validacionNS.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
+                if (chkDecimales.Checked) { estrategia = new ValidacionDecimales(); chkActivo = chkDecimales; }
+                else if (chkCatalogos.Checked) { estrategia = new ValidacionCatalogos(); chkActivo = chkCatalogos; }
+                else if (chkNS.Checked) { estrategia = new ValidacionNS(); chkActivo = chkNS; }
+                else if (chkFormatoTexto.Checked) { estrategia = new ValidacionFormatoTexto(); chkActivo = chkFormatoTexto; }
+                else if (chkBloqueo.Checked) { estrategia = new ValidacionBloqueos(); chkActivo = chkBloqueo; }
+                else if (chkBlancos.Checked) { estrategia = new ValidacionBlancos(); chkActivo = chkBlancos; }
+                else if (chkEspClave.Checked) { estrategia = new ValidacionEspecifique(); chkActivo = chkEspClave; }
+                else if (chkFechas.Checked) { estrategia = new ValidacionFechas(); chkActivo = chkFechas; }
+                else if (chkSumas.Checked) { estrategia = new ValidacionSumas(); chkActivo = chkSumas; }
 
-                    chkNS.Checked = false;
-                }
-                // --- VALIDACIÓN FORMATO TEXTO ---
-                else if (chkFormatoTexto.Checked == true)
+                // 3. EJECUCIÓN Y CONSUMO DEL DTO
+                if (estrategia != null)
                 {
-                    IValidacionExcel validacionFormatoTexto = new ValidacionFormatoTexto();
-                    validacionFormatoTexto.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
+                    // ¡AQUÍ ESTÁ LA MAGIA! Capturamos la caja "ResultadoValidacion" que nos manda la clase
+                    ResultadoValidacion resultado = estrategia.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
 
-                    chkFormatoTexto.Checked = false;
-                }
-                // --- VALIDACIÓN BLOQUEOS ---
-                else if (chkBloqueo.Checked == true)
-                {
-                    IValidacionExcel validacionBloqueos = new ValidacionBloqueos();
-                    validacionBloqueos.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
-
-                    chkBloqueo.Checked = false;
-                }
-                // --- VALIDACION BLANCOS -------
-                else if (chkBlancos.Checked == true)
-                {
-                    IValidacionExcel validacionBlancos = new ValidacionBlancos();
-                    validacionBlancos.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
-
-                    chkBlancos.Checked = false; // Desmarcamos el UI tras finalizar o cancelar
-                }
-                // --- VALIDACIÓN ESPECIFIQUES (PALABRAS CLAVE) ---
-                else if (chkEspClave.Checked == true)
-                {
-                    if (_libroCenso == null || _rangoCapturado == null)
+                    // Si la clase nos devolvió un mensaje (sea éxito, error o cancelación), el Formulario lo dibuja
+                    if (resultado != null && !string.IsNullOrEmpty(resultado.Mensaje))
                     {
-                        MessageBox.Show(this, "Operación denegada: Captura la celda destino (Especifique) primero.",
-                                        "Arquitectura SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        chkEspClave.Checked = false;
-                        return;
+                        // Decidimos el icono y título basándonos en el booleano "Exito" del DTO
+                        MessageBoxIcon icono = resultado.Exito ? MessageBoxIcon.Information : (resultado.Mensaje.Contains("Error") ? MessageBoxIcon.Error : MessageBoxIcon.Warning);
+                        string titulo = resultado.Exito ? "SAVCNG - Validación Exitosa" : "SAVCNG - Atención";
+
+                        MessageBox.Show(this, resultado.Mensaje, titulo, MessageBoxButtons.OK, icono);
                     }
 
-                    IValidacionExcel validacionEspecifique = new ValidacionEspecifique();
-                    validacionEspecifique.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
-
-                    chkEspClave.Checked = false;
+                    // 4. Limpieza de UI (Desmarcamos el checkbox automáticamente)
+                    if (chkActivo != null)
+                    {
+                        chkActivo.Checked = false;
+                    }
                 }
-                // --- VALIDACIÓN FECHAS ---
-                else if (chkFechas.Checked == true)
+                else
                 {
-                    IValidacionExcel validacionFechas = new ValidacionFechas();
-                    validacionFechas.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
-
-                    chkFechas.Checked = false;
-                }
-                // --- VALIDACIÓN SUMAS (NUEVO MOTOR BOOLEANO Y ALERTAS CON SOPORTE MERGE) ---
-                else if (chkSumas.Checked == true)
-                {
-                    IValidacionExcel validacionSumas = new ValidacionSumas();
-                    validacionSumas.Ejecutar(excelApp, _libroCenso, _rangoCapturado);
-
-                    chkSumas.Checked = false;
+                    MessageBox.Show(this, "Por favor, selecciona una validación para aplicar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this,"Ocurrió un error al aplicar el formato: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, "Ocurrió un error crítico al orquestar la validación: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

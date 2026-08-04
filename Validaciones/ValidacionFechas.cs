@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Consumimos nuestra Fachada
+using SAVCNG_ExcelDNA.Core; // Consumimos nuestra Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionFechas : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO AHORA EXIGE DEVOLVER EL DTO (ResultadoValidacion)
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Worksheet wsActual = null;
 
@@ -22,31 +23,43 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Indica el valor MÍNIMO aceptado para esta validación:\n\n(Ej. 1 para días/meses, o 1821 para años).",
                     "SAVCNG - Límite Inferior", "1", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
-                if (resultadoInferior is bool && (bool)resultadoInferior == false) return;
+                // ABORTO 1: DTO
+                if (resultadoInferior is bool && (bool)resultadoInferior == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración de límite mínimo cancelada.", AlertaInyectada = false };
+                }
 
                 string inputInferior = resultadoInferior.ToString().Trim();
-                if (string.IsNullOrWhiteSpace(inputInferior)) return;
+                if (string.IsNullOrWhiteSpace(inputInferior))
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Límite inferior vacío. Operación abortada.", AlertaInyectada = false };
+                }
 
                 object resultadoSuperior = excelApp.InputBox(
                     "Indica el valor MÁXIMO aceptado para esta validación:\n\n(Ej. 31 para días, 12 para meses, o 2026 para años).",
                     "SAVCNG - Límite Superior", "2026", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
-                if (resultadoSuperior is bool && (bool)resultadoSuperior == false) return;
+                // ABORTO 2: DTO
+                if (resultadoSuperior is bool && (bool)resultadoSuperior == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración de límite máximo cancelada.", AlertaInyectada = false };
+                }
 
                 string inputSuperior = resultadoSuperior.ToString().Trim();
-                if (string.IsNullOrWhiteSpace(inputSuperior)) return;
+                if (string.IsNullOrWhiteSpace(inputSuperior))
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Límite superior vacío. Operación abortada.", AlertaInyectada = false };
+                }
 
                 // Validación estricta de las variables C#
                 if (!int.TryParse(inputInferior, out int limiteInferior) || !int.TryParse(inputSuperior, out int limiteSuperior))
                 {
-                    MessageBox.Show("Por favor, asegúrate de escribir únicamente números enteros.\nNo se permiten letras, decimales, ni espacios en blanco.", "Error de Tipado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Por favor, asegúrate de escribir únicamente números enteros.\nNo se permiten letras, decimales, ni espacios en blanco.", AlertaInyectada = false };
                 }
 
                 if (limiteInferior > limiteSuperior)
                 {
-                    MessageBox.Show($"Error de Lógica:\nEl límite mínimo ({limiteInferior}) no puede ser mayor que el límite máximo ({limiteSuperior}).", "Límites invertidos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    return new ResultadoValidacion { Exito = false, Mensaje = $"Error de Lógica:\nEl límite mínimo ({limiteInferior}) no puede ser mayor que el límite máximo ({limiteSuperior}).", AlertaInyectada = false };
                 }
 
                 // =========================================================================
@@ -61,6 +74,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (tieneFormatosPrevios || tieneValidacionPrevia)
                 {
+                    // Interacción permitida
                     DialogResult respLimpieza = MessageBox.Show(
                         "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
                         "NOTA: Al ser una restricción de captura estricta, la regla de celdas se sobreescribirá, pero...\n\n" +
@@ -69,10 +83,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         "NO = BORRAR todo el historial y limpiar el lienzo.",
                         "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
 
+                    // ABORTO 3: DTO
                     if (respLimpieza == DialogResult.Cancel)
                     {
-                        MessageBox.Show("Proceso cancelado.\nNo se alteró la plantilla.", "Operación Cancelada", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Proceso cancelado.\nNo se alteró la plantilla.", AlertaInyectada = false };
                     }
 
                     if (respLimpieza == DialogResult.No)
@@ -85,17 +99,26 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // FASE 2.5: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
                 // =========================================================================
                 System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                int totalAreas = rangoCapturado.Areas.Count;
 
-                for (int i = 1; i <= rangoCapturado.Areas.Count; i++)
+                // RASTREO ZERO LEAKS: Envolviendo la iteración con bloque finally
+                for (int i = 1; i <= totalAreas; i++)
                 {
-                    Excel.Range areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
-                    string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
-
-                    if (!string.IsNullOrEmpty(idPregunta))
+                    Excel.Range areaIndividual = null;
+                    try
                     {
-                        preguntasUnicas.Add(idPregunta);
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
+
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
                     }
-                    ExcelHelper.LiberarCom(areaIndividual); // Limpieza estricta COM
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual); // Limpieza estricta COM
+                    }
                 }
 
                 string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
@@ -105,12 +128,17 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 // FASE 3: PROCESAMIENTO MASIVO POR ÁREAS Y TRADUCCIÓN UNIVERSAL
                 // =========================================================================
-                foreach (Excel.Range area in rangoCapturado.Areas)
+
+                // RASTREO ZERO LEAKS: Reemplazo del foreach por ciclo for indexado
+                for (int j = 1; j <= totalAreas; j++)
                 {
+                    Excel.Range area = null;
                     Excel.Range primeraCelda = null;
 
                     try
                     {
+                        area = (Excel.Range)rangoCapturado.Areas[j];
+
                         area.Validation.Delete();
                         if (limpiarFormatos) { area.FormatConditions.Delete(); }
 
@@ -136,12 +164,14 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     }
                     finally
                     {
+                        // Liberación estricta del proxy de área y sus dependencias en cada vuelta
                         ExcelHelper.LiberarCom(primeraCelda);
+                        ExcelHelper.LiberarCom(area);
                     }
                 }
 
                 // =========================================================================
-                // FASE 4: CONCLUSIÓN Y NOTIFICACIÓN UX
+                // FASE 4: CONCLUSIÓN Y NOTIFICACIÓN UX (EMPACADA EN DTO)
                 // =========================================================================
                 string estadoAuditoria = limpiarFormatos ? "Se borraron configuraciones visuales previas." : "Se conservaron colores y bloqueos anteriores.";
 
@@ -153,15 +183,27 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Data Validation (Custom)"
                 );
 
-                MessageBox.Show(
-                    $"Validación de rango aplicada con éxito en {rangoCapturado.Areas.Count} bloque(s).\n\n" +
-                    $"• Criterio: Números enteros del {limiteInferior} al {limiteSuperior} (o claves NS/NA).\n" +
-                    $"• Auditoría: {estadoAuditoria}",
-                    "SAVCNG - Validación Completada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string mensajeExito = $"Validación de rango aplicada con éxito en {totalAreas} bloque(s).\n\n" +
+                                      $"• Criterio: Números enteros del {limiteInferior} al {limiteSuperior} (o claves NS/NA).\n" +
+                                      $"• Auditoría: {estadoAuditoria}";
+
+                // ÉXITO TOTAL: DTO
+                return new ResultadoValidacion
+                {
+                    Exito = true,
+                    Mensaje = mensajeExito,
+                    AlertaInyectada = true
+                };
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error crítico en el motor de fechas: {ex.Message}", "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // ERROR CRÍTICO: DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = $"Error crítico en el motor de fechas: {ex.Message}",
+                    AlertaInyectada = false
+                };
             }
             finally
             {

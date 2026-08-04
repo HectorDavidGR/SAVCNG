@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Importamos nuestra Fachada
+using SAVCNG_ExcelDNA.Core; // Consumimos nuestra Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionDecimales : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO AHORA EXIGE DEVOLVER EL DTO
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Worksheet wsActual = null;
 
@@ -28,9 +29,15 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         "SAVCNG - Configuración Numérica",
                         Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 1);
 
+                    // ABORTO TOTAL 1: Retornamos el DTO en lugar del return vacío
                     if (seleccionTipo is bool && (bool)seleccionTipo == false)
                     {
-                        return; // Aborto silencioso controlado
+                        return new ResultadoValidacion
+                        {
+                            Exito = false,
+                            Mensaje = "Configuración cancelada por el usuario.",
+                            AlertaInyectada = false
+                        };
                     }
 
                     opcionEscogida = seleccionTipo.ToString().Trim();
@@ -41,6 +48,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     }
                     else
                     {
+                        // Este MessageBox se permite por ser interactivo (Validación de entrada)
                         MessageBox.Show("Opción no válida. Por favor ingresa el número 1 o 2.", "Dato Incorrecto", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
@@ -64,6 +72,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (tieneFormatosPrevios || tieneValidacionPrevia)
                 {
+                    excelApp.ScreenUpdating = true; // Restaurar UX para el diálogo
                     DialogResult respLimpieza = MessageBox.Show(
                         "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
                         "NOTA: Al ser una restricción de captura estricta, la regla se sobreescribirá, pero...\n\n" +
@@ -71,8 +80,17 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         "SÍ = MANTENER colores/bloqueos anteriores.\n" +
                         "NO = BORRAR todo el historial y limpiar el lienzo.",
                         "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                    excelApp.ScreenUpdating = false;
 
-                    if (respLimpieza == DialogResult.Cancel) return;
+                    // ABORTO TOTAL 2: Retorno vía DTO
+                    if (respLimpieza == DialogResult.Cancel)
+                    {
+                        return new ResultadoValidacion
+                        {
+                            Exito = false,
+                            Mensaje = "Proceso cancelado. No se alteró la plantilla."
+                        };
+                    }
                     if (respLimpieza == DialogResult.No) limpiarFormatos = true;
                 }
 
@@ -80,17 +98,25 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // FASE 3: RECOLECCIÓN LIGERA DE PREGUNTAS (Usando ExcelHelper)
                 // =========================================================================
                 System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                int totalAreas = rangoCapturado.Areas.Count;
 
-                for (int i = 1; i <= rangoCapturado.Areas.Count; i++)
+                for (int i = 1; i <= totalAreas; i++)
                 {
-                    Excel.Range areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
-                    string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
-
-                    if (!string.IsNullOrEmpty(idPregunta))
+                    Excel.Range areaIndividual = null;
+                    try
                     {
-                        preguntasUnicas.Add(idPregunta);
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
+
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
                     }
-                    ExcelHelper.LiberarCom(areaIndividual);
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual);
+                    }
                 }
 
                 excelApp.ScreenUpdating = false;
@@ -98,13 +124,17 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 // FASE 4: PROCESAMIENTO MASIVO POR ÁREAS Y TRADUCCIÓN (FAÇADE)
                 // =========================================================================
-                foreach (Excel.Range area in rangoCapturado.Areas)
+                // RASTREO ZERO LEAKS: Convertido de foreach a for para blindar la memoria
+                for (int j = 1; j <= totalAreas; j++)
                 {
+                    Excel.Range area = null;
                     Excel.Range primeraCelda = null;
                     Excel.FormatCondition fcSecundario = null;
 
                     try
                     {
+                        area = (Excel.Range)rangoCapturado.Areas[j];
+
                         area.Validation.Delete();
                         if (limpiarFormatos) { area.FormatConditions.Delete(); }
 
@@ -126,7 +156,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             ? $"IF(ISNUMBER({dirRel}), AND(TRUNC({dirRel})={dirRel}, {dirRel}>=0), OR(TRIM({dirRel})=\"NS\", TRIM({dirRel})=\"NA\"))"
                             : $"IF(ISNUMBER({dirRel}), AND(ROUND({dirRel}, 10)={dirRel}, {dirRel}>=0), OR(TRIM({dirRel})=\"NS\", TRIM({dirRel})=\"NA\"))";
 
-                        // Delegamos la traducción al ExcelHelper (Código mucho más limpio)
+                        // Delegamos la traducción al ExcelHelper
                         string formulaValidacionLocal = ExcelHelper.TraducirFormulaLocal(wsActual, $"={formulaBaseIngles}", filaBase);
                         string formulaCondicionLocal = ExcelHelper.TraducirFormulaLocal(wsActual, $"=AND({dirRel}<>\"\", NOT({formulaBaseIngles}))", filaBase);
 
@@ -155,19 +185,19 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     }
                     finally
                     {
-                        // Limpieza simplificada
+                        // Limpieza estricta COM iterativa
                         ExcelHelper.LiberarCom(fcSecundario);
                         ExcelHelper.LiberarCom(primeraCelda);
+                        ExcelHelper.LiberarCom(area);
                     }
                 }
 
                 // =========================================================================
-                // FASE 5: CONCLUSIÓN Y REGISTRO EN BITÁCORA
+                // FASE 5: CONCLUSIÓN Y REGISTRO EN BITÁCORA (EMPACADO EN DTO)
                 // =========================================================================
                 string estadoAuditoria = limpiarFormatos ? "Se borraron configuraciones visuales previas." : "Se conservaron colores y bloqueos anteriores.";
                 string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
 
-                // Suponiendo que AuditoriaCenso es global estático en tu proyecto:
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso,
                     preguntasDetectadas,
@@ -176,18 +206,28 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Validation + FormatCondition"
                 );
 
-                MessageBox.Show(
-                    $"{etiquetaBitacora} aplicada con éxito en {rangoCapturado.Areas.Count} bloque(s).\n\n" +
-                    $"• Auditoría: {estadoAuditoria}\n" +
-                    $"• Regla Activa: Bloqueo de captura inválida (Data Validation).\n" +
-                    $"• Regla Pasiva: Resalte rojo en caso de alteración externa (Format Conditions).",
-                    "SAVCNG - Validación Completada",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                string mensajeExito = $"{etiquetaBitacora} aplicada con éxito en {totalAreas} bloque(s).\n\n" +
+                                      $"• Auditoría: {estadoAuditoria}\n" +
+                                      $"• Regla Activa: Bloqueo de captura inválida (Data Validation).\n" +
+                                      $"• Regla Pasiva: Resalte rojo en caso de alteración externa (Format Conditions).";
+
+                // ÉXITO TOTAL: Retorno del DTO a la Vista
+                return new ResultadoValidacion
+                {
+                    Exito = true,
+                    Mensaje = mensajeExito,
+                    AlertaInyectada = true
+                };
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error crítico al aplicar la validación: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // ERROR CRÍTICO: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = "Error crítico al aplicar la validación: " + ex.Message,
+                    AlertaInyectada = false
+                };
             }
             finally
             {

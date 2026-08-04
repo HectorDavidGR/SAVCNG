@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core;
+using SAVCNG_ExcelDNA.Core; // Consumimos la Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionFormatoTexto : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO AHORA EXIGE DEVOLVER EL DTO
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Worksheet wsActual = null;
 
@@ -27,6 +28,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (tieneFormatosPrevios || tieneValidacionPrevia)
                 {
+                    // Interacción UX Permitida
                     DialogResult respLimpieza = MessageBox.Show(
                         "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
                         "NOTA: Al ser una restricción de captura estricta, la regla de celdas se sobreescribirá, pero...\n\n" +
@@ -35,10 +37,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         "NO = BORRAR todo el historial y limpiar el lienzo.",
                         "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
 
+                    // ABORTO TOTAL 1: Retorno vía DTO
                     if (respLimpieza == DialogResult.Cancel)
                     {
-                        MessageBox.Show("Proceso cancelado.\nNo se alteró la plantilla.", "Operación Cancelada", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Proceso cancelado.\nNo se alteró la plantilla.", AlertaInyectada = false };
                     }
 
                     if (respLimpieza == DialogResult.No)
@@ -51,18 +53,26 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // FASE 1.5: RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
                 // =========================================================================
                 System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                int totalAreas = rangoCapturado.Areas.Count;
 
-                for (int i = 1; i <= rangoCapturado.Areas.Count; i++)
+                // RASTREO ZERO LEAKS: Envoltura estricta por ciclo
+                for (int i = 1; i <= totalAreas; i++)
                 {
-                    Excel.Range areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
-                    string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
-
-                    if (!string.IsNullOrEmpty(idPregunta))
+                    Excel.Range areaIndividual = null;
+                    try
                     {
-                        preguntasUnicas.Add(idPregunta);
-                    }
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
 
-                    ExcelHelper.LiberarCom(areaIndividual);
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
+                    }
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual);
+                    }
                 }
 
                 // =========================================================================
@@ -72,7 +82,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Indica en qué columna libre deseas colocar la validación oculta (AF en adelante).\n\nConsidera que el sistema requerirá espacio libre hacia abajo proporcional al número de filas que seleccionaste.",
                     "SAVCNG - Selección de Fórmula Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
 
-                if (resAuxiliar is bool && (bool)resAuxiliar == false) { return; }
+                // ABORTO TOTAL 2: Retorno vía DTO
+                if (resAuxiliar is bool && (bool)resAuxiliar == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración de columna auxiliar cancelada.", AlertaInyectada = false };
+                }
 
                 Excel.Range seleccionAuxiliar = null;
                 Excel.Range celdaInicioAux = null;
@@ -95,14 +109,18 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 // FASE 3: PROCESAMIENTO MASIVO POR ÁREAS (SOPORTE MULTI-RANGO)
                 // =========================================================================
-                foreach (Excel.Range area in rangoCapturado.Areas)
+                // RASTREO ZERO LEAKS: Convertimos foreach en for para evitar enumerador huérfano
+                for (int j = 1; j <= totalAreas; j++)
                 {
+                    Excel.Range area = null;
                     Excel.Range primeraCeldaCap = null;
                     Excel.Range rangoAuxiliarArea = null;
                     Excel.Range primeraCeldaAux = null;
 
                     try
                     {
+                        area = (Excel.Range)rangoCapturado.Areas[j];
+
                         area.Validation.Delete();
                         if (limpiarFormatos) { area.FormatConditions.Delete(); }
 
@@ -131,14 +149,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         }
 
                         // VALIDACIÓN DE DATOS (ULTRA LIGERA)
-                        // Aquí usamos ExcelHelper para la traducción de la regla de Data Validation,
-                        // previniendo problemas en Excels regionales.
                         string formulaDV = ExcelHelper.TraducirFormulaLocal(wsActual, $"={dirAuxRel}=1", filaInicio);
 
                         area.Validation.Add(
                             Excel.XlDVType.xlValidateCustom,
                             Excel.XlDVAlertStyle.xlValidAlertStop,
-                            Excel.XlFormatConditionOperator.xlBetween, // En este caso particular, la fórmula auxiliar simple evalúa a TRUE/FALSE, pero para consistencia de tu código lo dejamos así. Type.Missing es preferible para Custom Validation.
+                            Excel.XlFormatConditionOperator.xlBetween,
                             formulaDV,
                             Type.Missing);
 
@@ -160,6 +176,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         ExcelHelper.LiberarCom(primeraCeldaCap);
                         ExcelHelper.LiberarCom(primeraCeldaAux);
                         ExcelHelper.LiberarCom(rangoAuxiliarArea);
+                        ExcelHelper.LiberarCom(area); // Destrucción estricta del proxy de área actual
                     }
                 }
 
@@ -177,15 +194,27 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Data Validation"
                 );
 
-                MessageBox.Show(
-                    $"Validación de formato de texto aplicada con éxito en {rangoCapturado.Areas.Count} bloque(s).\n\n" +
-                    $"• Columna Auxiliar Inyectada: {colAuxLetra}\n" +
-                    $"• Auditoría: {estadoAuditoria}",
-                    "SAVCNG - Validación Completada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string mensajeExito = $"Validación de formato de texto aplicada con éxito en {totalAreas} bloque(s).\n\n" +
+                                      $"• Columna Auxiliar Inyectada: {colAuxLetra}\n" +
+                                      $"• Auditoría: {estadoAuditoria}";
+
+                // ÉXITO TOTAL: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = true,
+                    Mensaje = mensajeExito,
+                    AlertaInyectada = true
+                };
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error crítico al configurar Formato Texto: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // ERROR CRÍTICO: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = "Error crítico al configurar Formato Texto: " + ex.Message,
+                    AlertaInyectada = false
+                };
             }
             finally
             {

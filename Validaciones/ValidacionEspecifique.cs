@@ -2,13 +2,14 @@
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core;
+using SAVCNG_ExcelDNA.Core; // Consumimos la Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionEspecifique : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO EXIGE DEVOLVER EL DTO
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Worksheet ws = null;
             Excel.Range rangoCatalogo = null;
@@ -20,24 +21,39 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 ws = (Excel.Worksheet)rangoCapturado.Worksheet;
 
                 // =========================================================================
-                // FASE 1: RECOPILACIÓN DE ESPACIOS DE TRABAJO (UX BLINDADA)
+                // FASE 1: RECOPILACIÓN DE ESPACIOS DE TRABAJO (UX BLINDADA AL DTO)
                 // =========================================================================
                 object resCatalogo = excelApp.InputBox(
-                   "1. Selecciona las OPCIONES DEL CATÁLOGO.\nNOTA: Debera omitir de la selección las opciones 'Otro(Especifique)' y/o 'No identificado' del catálogo correspondiente. ",
+                   "1. Selecciona las OPCIONES DEL CATÁLOGO.",
                     "Mapeo de Catálogo", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
-                if (resCatalogo is bool && (bool)resCatalogo == false) return;
+
+                // ABORTO TOTAL 1
+                if (resCatalogo is bool && (bool)resCatalogo == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Mapeo de opciones del catálogo cancelado.", AlertaInyectada = false };
+                }
                 rangoCatalogo = (Excel.Range)resCatalogo;
 
                 object resMensaje = excelApp.InputBox(
                     "2. Selecciona el rango o celda donde se mostrará el MENSAJE DE ALERTA.",
                     "Destino de Alerta", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
-                if (resMensaje is bool && (bool)resMensaje == false) return;
+
+                // ABORTO TOTAL 2
+                if (resMensaje is bool && (bool)resMensaje == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de celda de alerta cancelada.", AlertaInyectada = false };
+                }
                 rangoMensaje = (Excel.Range)resMensaje;
 
                 object resMotor = excelApp.InputBox(
                     "3. Selecciona UNA CELDA VACÍA (columna AF en adelante) para construir el Diccionario Auxiliar de Busqueda.\nADVERTENCIA: Considere un espacio libre de dos columnas por N filas. (N = numero de opciones del catalogo)",
                     "Generación del Motor Oculto", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
-                if (resMotor is bool && (bool)resMotor == false) return;
+
+                // ABORTO TOTAL 3
+                if (resMotor is bool && (bool)resMotor == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Generación del motor de búsqueda cancelada.", AlertaInyectada = false };
+                }
                 celdaMotor = (Excel.Range)resMotor;
 
                 // =========================================================================
@@ -53,17 +69,31 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         "NO = BORRAR todo el historial y limpiar el lienzo.",
                         "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
 
-                    if (respLimpieza == DialogResult.Cancel) return;
+                    // ABORTO TOTAL 4
+                    if (respLimpieza == DialogResult.Cancel)
+                    {
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Proceso cancelado por el usuario. No se modificó la plantilla.", AlertaInyectada = false };
+                    }
                     if (respLimpieza == DialogResult.No) { limpiarFormatos = true; }
                 }
 
                 System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
-                for (int i = 1; i <= rangoCapturado.Areas.Count; i++)
+                int totalAreas = rangoCapturado.Areas.Count;
+
+                // RASTREO ZERO LEAKS: Bloque protegido por celda
+                for (int i = 1; i <= totalAreas; i++)
                 {
-                    Excel.Range areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
-                    string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
-                    if (!string.IsNullOrEmpty(idPregunta)) { preguntasUnicas.Add(idPregunta); }
-                    ExcelHelper.LiberarCom(areaIndividual);
+                    Excel.Range areaIndividual = null;
+                    try
+                    {
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
+                        if (!string.IsNullOrEmpty(idPregunta)) { preguntasUnicas.Add(idPregunta); }
+                    }
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual);
+                    }
                 }
                 string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
 
@@ -92,7 +122,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 {
                     celdaLimpiaAzul = celdaMotor.Offset[0, 0];
                     string formulaLimpieza = $"=LOWER(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE({dirAzulAbsoluta},\"á\",\"a\"),\"é\",\"e\"),\"í\",\"i\"),\"ó\",\"o\"),\"ú\",\"u\"))";
-                    celdaLimpiaAzul.Formula = formulaLimpieza;
+                    celdaLimpiaAzul.Formula = formulaLimpieza; // .Formula soporta inglés nativo de COM
                     celdaLimpiaAzul.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.Yellow);
                     celdaLimpiaAzul.Font.Bold = true;
                     dirLimpiaAbsoluta = celdaLimpiaAzul.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
@@ -107,10 +137,15 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (limpiarFormatos) { rangoCatalogo.FormatConditions.Delete(); }
 
-                foreach (Excel.Range celdaCat in rangoCatalogo.Cells)
+                int totalCeldasCat = rangoCatalogo.Cells.Count;
+
+                // RASTREO ZERO LEAKS: Reemplazo del foreach letal por un ciclo for indexado
+                for (int k = 1; k <= totalCeldasCat; k++)
                 {
+                    Excel.Range celdaCat = null;
                     try
                     {
+                        celdaCat = (Excel.Range)rangoCatalogo.Cells[k];
                         string textoOriginal = celdaCat.Text != null ? celdaCat.Text.ToString() : "";
 
                         if (!string.IsNullOrWhiteSpace(textoOriginal) && textoOriginal.Trim() != "")
@@ -157,7 +192,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                     string celdaCatRelativa = celdaCat.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
                                     string formulaFormatCondIngles = $"=AND({celdaCatRelativa}<>\"\", {dirMatchAbsoluta}=TRUE)";
 
-                                    // Utilizamos ExcelHelper para traducir y evitar fugas
+                                    // Utilizamos ExcelHelper para traducir a lenguaje local
                                     string formulaFormatCondLocal = ExcelHelper.TraducirFormulaLocal(ws, formulaFormatCondIngles, celdaCat.Row);
 
                                     fc = (Excel.FormatCondition)celdaCat.FormatConditions.Add(
@@ -181,7 +216,8 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     }
                     finally
                     {
-                        ExcelHelper.LiberarCom(celdaCat); // Crucial para catálogos largos
+                        // Liberación estricta de la celda de catálogo en cada iteración
+                        ExcelHelper.LiberarCom(celdaCat);
                     }
                 }
 
@@ -220,7 +256,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
-                // FASE 5: REGISTRO DE AUDITORÍA Y NOTIFICACIÓN
+                // FASE 5: REGISTRO DE AUDITORÍA Y NOTIFICACIÓN (DTO)
                 // =========================================================================
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso,
@@ -230,11 +266,23 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "Formato Condicional - Fórmulas"
                 );
 
-                MessageBox.Show("El Diccionario de Palabras Clave y la Alerta Inteligente fueron construidos con éxito.", "SAVCNG - ExcelDNA", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // ÉXITO TOTAL: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = true,
+                    Mensaje = "El Diccionario de Palabras Clave y la Alerta Inteligente fueron construidos con éxito.",
+                    AlertaInyectada = true
+                };
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error crítico al configurar el motor de búsqueda: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // ERROR CRÍTICO: Retorno del DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = "Error crítico al configurar el motor de búsqueda: " + ex.Message,
+                    AlertaInyectada = false
+                };
             }
             finally
             {

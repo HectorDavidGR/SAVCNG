@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SAVCNG_ExcelDNA.Core;
+using System;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace SAVCNG_ExcelDNA.Validaciones
@@ -16,6 +17,6 @@ namespace SAVCNG_ExcelDNA.Validaciones
         // 1. El motor de Excel (Para InputBoxes o ScreenUpdating)
         // 2. El Libro (Para la bitácora)
         // 3. El Rango (Las celdas seleccionadas por el usuario)
-        void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado);
+        ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado);
     }
 }

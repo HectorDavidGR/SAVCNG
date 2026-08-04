@@ -63,6 +63,7 @@
   <ItemGroup>
     <Compile Include="AuditoriaCenso.cs" />
     <Compile Include="Core\ExcelHelper.cs" />
+    <Compile Include="Core\ResultadoValidacion.cs" />
     <Compile Include="FrmValidaciones.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -7,7 +7,8 @@ namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionBlancos : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO EXIGE DEVOLVER EL DTO
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Worksheet wsActual = null;
             Excel.Range rangoDestino = null;
@@ -64,7 +65,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 string resExclusiones = PedirInputWinForms(mensajePrompt, "Excepciones de Validación (Opcional)", "2, 9");
 
-                if (resExclusiones == null) return; // Aborto silencioso
+                // ABORTO TOTAL 1: DTO
+                if (resExclusiones == null)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración de exclusiones cancelada.", AlertaInyectada = false };
+                }
 
                 string textoExclusiones = resExclusiones.Trim();
                 System.Collections.Generic.List<string> listaCondicionesExcluidas = new System.Collections.Generic.List<string>();
@@ -85,6 +90,32 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // ==========================================================
+                // 1.5. RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT)
+                // ==========================================================
+                System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                int totalAreas = rangoCapturado.Areas.Count;
+
+                // RASTREO ZERO LEAKS: Ciclo estricto con liberación de COM
+                for (int i = 1; i <= totalAreas; i++)
+                {
+                    Excel.Range areaIndividual = null;
+                    try
+                    {
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
+
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
+                    }
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual);
+                    }
+                }
+
+                // ==========================================================
                 // 2. SOLICITAR UBICACIÓN DE ALERTA (Rango de Excel)
                 // ==========================================================
                 if (formPrincipal != null) formPrincipal.Hide();
@@ -95,7 +126,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (formPrincipal != null) formPrincipal.Show();
 
-                if (resDestino is bool && (bool)resDestino == false) return;
+                // ABORTO TOTAL 2: DTO
+                if (resDestino is bool && (bool)resDestino == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de destino de alerta cancelada.", AlertaInyectada = false };
+                }
+
                 rangoDestino = (Excel.Range)resDestino;
 
                 // ==========================================================
@@ -106,8 +142,16 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "2. Mensaje de Alerta",
                     "Favor de ingresar toda la información requerida en la pregunta");
 
-                if (string.IsNullOrWhiteSpace(resTexto)) return;
+                // ABORTO TOTAL 3: DTO
+                if (string.IsNullOrWhiteSpace(resTexto))
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración del mensaje de alerta cancelada.", AlertaInyectada = false };
+                }
+
                 string textoAlerta = resTexto.Trim();
+
+                // Apagamos la UI para procesar masivamente sin parpadeos
+                excelApp.ScreenUpdating = false;
 
                 // ==========================================================
                 // 4. CONSTRUCCIÓN INTELIGENTE ANTI-CELDAS COMBINADAS (MERGED)
@@ -149,6 +193,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     }
                     finally
                     {
+                        // Excelente uso original de Zero Leaks, mantenido intacto.
                         ExcelHelper.LiberarCom(areaCombinada);
                         ExcelHelper.LiberarCom(celdaActual);
                     }
@@ -207,16 +252,24 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     // ==========================================================
                     if (rangoCapturado.FormatConditions.Count > 0)
                     {
+                        // Restauramos la UI temporalmente para permitir interacción
+                        excelApp.ScreenUpdating = true;
                         DialogResult respFormato = MessageBox.Show(
                             "Se detectaron reglas de formato condicional previas (ej. Reglas de Bloqueo).\n\n" +
                             "¿Deseas CONSERVAR las reglas existentes e integrar la técnica de blancos?\n\n" +
                             "SÍ = Conservar formatos previos (Evita borrar tus bloques grises).\n" +
                             "NO = Eliminar formatos previos y aplicar únicamente el formato de blancos.",
                             "Formatos Condicionales Detectados",
-                            MessageBoxButtons.YesNo,
+                            MessageBoxButtons.YesNoCancel,
                             MessageBoxIcon.Warning);
+                        excelApp.ScreenUpdating = false;
 
-                        if (respFormato == DialogResult.No)
+                        // ABORTO TOTAL 4: DTO
+                        if (respFormato == DialogResult.Cancel)
+                        {
+                            return new ResultadoValidacion { Exito = false, Mensaje = "Operación cancelada por el usuario.", AlertaInyectada = false };
+                        }
+                        else if (respFormato == DialogResult.No)
                         {
                             rangoCapturado.FormatConditions.Delete();
                         }
@@ -247,13 +300,28 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         ExcelHelper.LiberarCom(formatoAzul);
                     }
 
+                    // ==========================================================
+                    // 7. AUDITORÍA Y CONCLUSIÓN (EMPAQUETADA EN DTO)
+                    // ==========================================================
+                    string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
+
+                    AuditoriaCenso.RegistrarAccion(
+                        libroCenso,
+                        preguntasDetectadas,
+                        "Validación de Blancos",
+                        rangoCapturado.Address.Replace("$", ""),
+                        "Fórmulas + FormatConditions"
+                    );
+
                     string msjExcepciones = listaCondicionesExcluidas.Count > 0
                         ? $"\n• Excepciones registradas: {textoExclusiones}"
                         : "";
 
-                    MessageBox.Show("Validación de blancos aplicada con éxito.\n\n" +
-                                    "• Si la fila no contiene ningún código de excepción y faltan campos, se alertará en azul." + msjExcepciones,
-                                    "SAVCNG Arquitectura", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    string mensajeExito = "Validación de blancos aplicada con éxito.\n\n" +
+                                          "• Si la fila no contiene ningún código de excepción y faltan campos, se alertará en azul." + msjExcepciones;
+
+                    // ÉXITO TOTAL: DTO
+                    return new ResultadoValidacion { Exito = true, Mensaje = mensajeExito, AlertaInyectada = true };
                 }
                 finally
                 {
@@ -265,12 +333,20 @@ namespace SAVCNG_ExcelDNA.Validaciones
             catch (Exception ex)
             {
                 if (formPrincipal != null) formPrincipal.Show();
-                MessageBox.Show("Error en el motor de validación inteligente: " + ex.Message, "Error de Inyección", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                // ERROR CRÍTICO: DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = "Error en el motor de validación inteligente: " + ex.Message,
+                    AlertaInyectada = false
+                };
             }
             finally
             {
                 ExcelHelper.LiberarCom(rangoDestino);
                 ExcelHelper.LiberarCom(wsActual);
+                if (excelApp != null) excelApp.ScreenUpdating = true;
             }
         }
     }

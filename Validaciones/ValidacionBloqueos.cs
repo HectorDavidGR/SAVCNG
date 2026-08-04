@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Consumimos nuestra Fachada
+using SAVCNG_ExcelDNA.Core; // Consumimos la Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionBloqueos : IValidacionExcel
     {
-        public void Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
+        // 1. EL CONTRATO EXIGE DEVOLVER EL DTO (ResultadoValidacion)
+        public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Worksheet wsActual = null;
             Excel.Range rangoCondicion = null;
@@ -26,7 +27,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "1. Condición de Bloqueo",
                     Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8); // 8 = Rango
 
-                if (resultadoRango is bool && (bool)resultadoRango == false) return;
+                // ABORTO TOTAL 1: DTO
+                if (resultadoRango is bool && (bool)resultadoRango == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de rango condicional cancelada.", AlertaInyectada = false };
+                }
 
                 rangoCondicion = (Excel.Range)resultadoRango;
 
@@ -96,13 +101,16 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "2. Operador Lógico",
                     "=", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
-                if (resultadoOperador is bool && (bool)resultadoOperador == false) return;
+                // ABORTO TOTAL 2: DTO
+                if (resultadoOperador is bool && (bool)resultadoOperador == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración de operador cancelada.", AlertaInyectada = false };
+                }
                 string operador = resultadoOperador.ToString().Trim();
 
                 if (operador != "=" && operador != "<>" && operador != ">" && operador != "<" && operador != ">=" && operador != "<=")
                 {
-                    MessageBox.Show("Operador no reconocido.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Operador no reconocido. Operación abortada.", AlertaInyectada = false };
                 }
 
                 object resultadoValor = excelApp.InputBox(
@@ -110,7 +118,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     "3. Valor del Criterio",
                     Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
-                if (resultadoValor is bool && (bool)resultadoValor == false) return;
+                // ABORTO TOTAL 3: DTO
+                if (resultadoValor is bool && (bool)resultadoValor == false)
+                {
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Configuración de criterio cancelada.", AlertaInyectada = false };
+                }
 
                 string valorCriterio = resultadoValor.ToString().Trim();
                 bool esNumero = double.TryParse(valorCriterio, out _);
@@ -128,6 +140,31 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 DialogResult respuestaRojo = MessageBox.Show(
                     "¿Deseas que la celda se resalte cuando se desbloquee y esté vacía?\n\n(Ideal para los campos 'Especifique' que se vuelven obligatorios).",
                     "4. Resalte de Obligatoriedad", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                // =========================================================================
+                // RECOLECCIÓN LIGERA DE PREGUNTAS (STATE MANAGEMENT & ZERO LEAKS)
+                // =========================================================================
+                System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
+                int totalAreas = rangoCapturado.Areas.Count;
+
+                for (int i = 1; i <= totalAreas; i++)
+                {
+                    Excel.Range areaIndividual = null;
+                    try
+                    {
+                        areaIndividual = (Excel.Range)rangoCapturado.Areas[i];
+                        string idPregunta = ExcelHelper.ObtenerNumeroPregunta(areaIndividual);
+
+                        if (!string.IsNullOrEmpty(idPregunta))
+                        {
+                            preguntasUnicas.Add(idPregunta);
+                        }
+                    }
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(areaIndividual);
+                    }
+                }
 
                 // ==========================================================
                 // APLICACIÓN DE REGLAS (MOTOR: COUNTIF EN INGLÉS UNIVERSAL)
@@ -149,7 +186,6 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 string fValidacionIngles = "";
                 string fSombreadoIngles = "";
 
-                // Usamos separador de comas nativo de C#/Inglés. ExcelHelper lo convertirá automáticamente a local.
                 if (respuestaBlanco == DialogResult.Yes)
                 {
                     fValidacionIngles = $"=OR(ISBLANK({dirCondicionLocal}), COUNTIF({dirCondicionLocal}, {criterioContarSi})>0)";
@@ -224,12 +260,38 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // ==========================================================
                 // -> PEGA AQUÍ TU CÓDIGO ORIGINAL QUE OMITISTE PARA EL MENSAJE DE ALERTA E INSTRUCCIÓN <-
 
+                // REGISTRO DE AUDITORÍA
+                string preguntasDetectadas = preguntasUnicas.Count > 0 ? string.Join(", ", preguntasUnicas) : "ND";
+                AuditoriaCenso.RegistrarAccion(
+                    libroCenso,
+                    preguntasDetectadas,
+                    "Validación Bloqueo Condicional",
+                    rangoCapturado.Address.Replace("$", ""),
+                    "Data Validation + FormatConditions"
+                );
+
                 string modoAplicado = esFilaPorFila ? "Fila por Fila (Paralelo)" : "Búsqueda Global";
-                MessageBox.Show($"Validación de Bloqueo Dinámica aplicada con éxito.\nModo: {modoAplicado}\nRegla: {operador} {valorCriterio}", "SAVCNG", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                string mensajeExito = $"Validación de Bloqueo Dinámica aplicada con éxito.\n\n" +
+                                      $"• Modo: {modoAplicado}\n" +
+                                      $"• Regla: {operador} {valorCriterio}";
+
+                // ÉXITO TOTAL: DTO
+                return new ResultadoValidacion
+                {
+                    Exito = true,
+                    Mensaje = mensajeExito,
+                    AlertaInyectada = true
+                };
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al aplicar la Validación de Bloqueo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // ERROR CRÍTICO: DTO
+                return new ResultadoValidacion
+                {
+                    Exito = false,
+                    Mensaje = "Error al aplicar la Validación de Bloqueo: " + ex.Message,
+                    AlertaInyectada = false
+                };
             }
             finally
             {
