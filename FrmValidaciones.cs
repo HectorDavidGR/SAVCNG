@@ -239,6 +239,7 @@ namespace SAVCNG_ExcelDNA
                 else if (chkEspClave.Checked) { estrategia = new ValidacionEspecifique(); chkActivo = chkEspClave; }
                 else if (chkFechas.Checked) { estrategia = new ValidacionFechas(); chkActivo = chkFechas; }
                 else if (chkSumas.Checked) { estrategia = new ValidacionSumas(); chkActivo = chkSumas; }
+                else if (chkCoordenadas.Checked) { estrategia = new ValidacionCoordenadasGeograficas(); chkActivo = chkCoordenadas; }
 
                 // 3. EJECUCIÓN Y CONSUMO DEL DTO
                 if (estrategia != null)

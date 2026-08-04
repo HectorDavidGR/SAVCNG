@@ -88,6 +88,7 @@
     <Compile Include="Validaciones\ValidacionBlancos.cs" />
     <Compile Include="Validaciones\ValidacionBloqueos.cs" />
     <Compile Include="Validaciones\ValidacionCatalogos.cs" />
+    <Compile Include="Validaciones\ValidacionCoordenadasGeograficas.cs" />
     <Compile Include="Validaciones\ValidacionDecimales.cs" />
     <Compile Include="Validaciones\IValidacionExcel.cs" />
     <Compile Include="Validaciones\ValidacionEspecifique.cs" />
