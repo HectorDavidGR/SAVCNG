@@ -224,11 +224,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // 5. Auditoría
                 // =========================================================================
                 string tipoLog = esLatitud ? "Latitud" : "Longitud";
-                string textoApilado = eliminarPrevios ? "Reemplazada" : "Apilada";
+                
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso,
                     numeroPregunta,
-                    $"Validación de Coordenadas ({tipoLog} - {textoApilado})",
+                    $"Validación de Coordenadas ({tipoLog})",
                     direccionRango,
                     "DV y Formatos Multicondicionales"
                 );

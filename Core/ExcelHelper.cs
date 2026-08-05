@@ -79,35 +79,78 @@ namespace SAVCNG_ExcelDNA.Core
                 hoja = rango.Worksheet;
                 int filaInicial = rango.Row;
 
-                // Buscamos desde la fila seleccionada hacia arriba en la columna 1 (Columna A)
-                for (int f = filaInicial; f >= 1; f--)
+                // Límite de seguridad para COM Interop: No buscar más allá de 500 filas hacia arriba
+                int limiteSuperior = Math.Max(1, filaInicial - 500);
+
+                // Buscamos desde la fila seleccionada hacia arriba en las columnas A (1) y B (2)
+                for (int f = filaInicial; f >= limiteSuperior; f--)
                 {
                     Excel.Range celdaA = null;
+                    Excel.Range celdaB = null;
                     try
                     {
-                        celdaA = hoja.Cells[f, 1];
-                        object valor = celdaA.Value2;
+                        celdaA = hoja.Cells[f, 1]; // Columna A (Para Preguntas Clásicas)
+                        celdaB = hoja.Cells[f, 2]; // Columna B (Para Complementos / Módulos)
 
-                        if (valor != null && !string.IsNullOrEmpty(valor.ToString().Trim()))
+                        object valorObjA = celdaA.Value2;
+                        object valorObjB = celdaB.Value2;
+
+                        // ==========================================================
+                        // 1. REGLA PARA MÓDULOS O COMPLEMENTOS (Escaneo en Columna B)
+                        // ==========================================================
+                        if (valorObjB != null)
                         {
-                            return valor.ToString().Trim();
+                            string valorB = valorObjB.ToString().Trim();
+                            if (!string.IsNullOrEmpty(valorB))
+                            {
+                                string valorBUpper = valorB.ToUpper();
+                                if (valorBUpper.StartsWith("COMPLEMENTO") || valorBUpper.StartsWith("MÓDULO") || valorBUpper.StartsWith("MODULO"))
+                                {
+                                    // Truncamos el texto para la bitácora (Ej: "Complemento 1. Título..." -> "Complemento 1")
+                                    int indexPunto = valorB.IndexOf('.');
+                                    if (indexPunto > 0)
+                                    {
+                                        return valorB.Substring(0, indexPunto).Trim();
+                                    }
+                                    return valorB;
+                                }
+                            }
                         }
+
+                        // ==========================================================
+                        // 2. REGLA PARA PREGUNTAS CLÁSICAS (Escaneo en Columna A)
+                        // ==========================================================
+                        if (valorObjA != null)
+                        {
+                            string valorA = valorObjA.ToString().Trim();
+                            if (!string.IsNullOrEmpty(valorA))
+                            {
+                                // Si el texto empieza con un dígito y contiene punto o guion, es una pregunta INEGI
+                                if (char.IsDigit(valorA[0]) && (valorA.Contains(".") || valorA.Contains("-")))
+                                {
+                                    return valorA;
+                                }
+                            }
+                        }
+
+                        // Si llegamos aquí y hay texto basura en ambas columnas, el escáner lo IGNORA y sigue subiendo.
                     }
                     finally
                     {
-                        // PARCHE CRÍTICO ZERO LEAKS: Destruir el puntero en cada paso
+                        // PARCHE CRÍTICO ZERO LEAKS: Destruir los punteros COM en cada iteración
+                        LiberarCom(celdaB);
                         LiberarCom(celdaA);
                     }
                 }
             }
-            catch { /* Si hay error, devolvemos vacío */ }
+            catch { /* Si hay error, devolvemos un valor por defecto seguro */ }
             finally
             {
                 // Cerramos la referencia de la hoja
                 LiberarCom(hoja);
             }
 
-            return "(no encontrada)";
+            return "No Asignado / Origen Desconocido";
         }
     }
 }
