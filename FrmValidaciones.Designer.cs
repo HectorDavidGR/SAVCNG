@@ -335,7 +335,6 @@ namespace SAVCNG_ExcelDNA
             this.chkCoordenadas.Appearance = System.Windows.Forms.Appearance.Button;
             this.chkCoordenadas.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
             this.chkCoordenadas.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkCoordenadas.Enabled = false;
             this.chkCoordenadas.Location = new System.Drawing.Point(221, 67);
             this.chkCoordenadas.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.chkCoordenadas.Name = "chkCoordenadas";
