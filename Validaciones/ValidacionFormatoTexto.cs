@@ -134,7 +134,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         primeraCeldaAux = (Excel.Range)rangoAuxiliarArea.Cells[1, 1];
                         string dirAuxRel = primeraCeldaAux.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
 
-                        string permitidos = "0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZÁÉÍÓÚÜ ";
+                        string permitidos = "0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ ";
                         string formulaAuxiliar = $"=IF(OR(ISBLANK({dirCapRel}), AND(EXACT({dirCapRel},UPPER({dirCapRel})), LEN({dirCapRel})=LEN(TRIM({dirCapRel})), SUMPRODUCT(--ISNUMBER(FIND(MID({dirCapRel},ROW(INDIRECT(\"1:\"&MAX(1,LEN({dirCapRel})))),1),\"{permitidos}\")))=LEN({dirCapRel}))), 1, 0)";
 
                         rangoAuxiliarArea.Formula = formulaAuxiliar;
