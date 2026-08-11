@@ -31,7 +31,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     // CASO 1: ENTRADA MANUAL (Ideal para "X")
                     // ==========================================================
                     object resultadoTexto = excelApp.InputBox(
-                        "Escribe el(los) valor(es) para tu lista desplegable.\nNOTA: Si son varias deberan estar separadas por comas):",
+                        "Escribe el(los) valor(es) para tu lista desplegable.\nNOTA: Si son varias deberan estar separadas por comas (ej.: 1,2,3):",
                         "Escribir Opciones",
                         Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
 
@@ -140,31 +140,46 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             }
 
                             System.Collections.Generic.List<string> listaLimpios = new System.Collections.Generic.List<string>();
-                            int totalCeldasOrigen = rangoOrigen.Cells.Count;
 
-                            // RASTREO ZERO LEAKS: Convertido de foreach a for para proteger la RAM
-                            for (int k = 1; k <= totalCeldasOrigen; k++)
+                            // CORRECCIÓN MULTI-RANGO: Iterar por Áreas y luego por Celdas para evitar omisiones de Interop
+                            int totalAreasOrigen = rangoOrigen.Areas.Count;
+
+                            for (int a = 1; a <= totalAreasOrigen; a++)
                             {
-                                Excel.Range celda = null;
+                                Excel.Range areaOrigen = null;
                                 try
                                 {
-                                    celda = (Excel.Range)rangoOrigen.Cells[k];
-                                    string textoCelda = celda.Text?.ToString() ?? "";
-                                    string soloNumeros = "";
+                                    areaOrigen = (Excel.Range)rangoOrigen.Areas[a];
+                                    int totalCeldasArea = areaOrigen.Cells.Count;
 
-                                    foreach (char letra in textoCelda)
+                                    for (int c = 1; c <= totalCeldasArea; c++)
                                     {
-                                        if (char.IsDigit(letra)) soloNumeros += letra;
-                                    }
+                                        Excel.Range celda = null;
+                                        try
+                                        {
+                                            celda = (Excel.Range)areaOrigen.Cells[c];
+                                            string textoCelda = celda.Text?.ToString() ?? "";
+                                            string soloNumeros = "";
 
-                                    if (!string.IsNullOrEmpty(soloNumeros))
-                                    {
-                                        listaLimpios.Add(soloNumeros);
+                                            foreach (char letra in textoCelda)
+                                            {
+                                                if (char.IsDigit(letra)) soloNumeros += letra;
+                                            }
+
+                                            if (!string.IsNullOrEmpty(soloNumeros))
+                                            {
+                                                listaLimpios.Add(soloNumeros);
+                                            }
+                                        }
+                                        finally
+                                        {
+                                            ExcelHelper.LiberarCom(celda);
+                                        }
                                     }
                                 }
                                 finally
                                 {
-                                    ExcelHelper.LiberarCom(celda);
+                                    ExcelHelper.LiberarCom(areaOrigen);
                                 }
                             }
 
