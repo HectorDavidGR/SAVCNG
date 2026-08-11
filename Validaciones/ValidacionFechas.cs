@@ -62,6 +62,9 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     return new ResultadoValidacion { Exito = false, Mensaje = $"Error de Lógica:\nEl límite mínimo ({limiteInferior}) no puede ser mayor que el límite máximo ({limiteSuperior}).", AlertaInyectada = false };
                 }
 
+                // Forzamos un mínimo de 2 dígitos por si el límite superior fuera de 1 dígito (ej. 9).
+                string mascaraFormato = new String('0', Math.Max(2, inputSuperior.Length));
+
                 // =========================================================================
                 // FASE 2: AUDITORÍA DE COEXISTENCIA (ADAPTADA A DATA VALIDATION)
                 // =========================================================================
@@ -141,6 +144,9 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                         area.Validation.Delete();
                         if (limpiarFormatos) { area.FormatConditions.Delete(); }
+
+                        // ---NUEVO AJUSTE: Aplicar el formato numérico ---
+                       area.NumberFormat = mascaraFormato;
 
                         primeraCelda = (Excel.Range)area.Cells[1, 1];
                         string direccionRelativa = primeraCelda.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
