@@ -180,7 +180,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                     filaValidacion.Value2 = textoOriginal;
 
                                     celdaMatch = celdaMotor.Offset[filaMotor, 1];
-                                    string formulaMatch = $"=OR({string.Join(",", fragmentosSearch)})";
+                                    string formulaMatch = $"=IF(OR({string.Join(",", fragmentosSearch)}),1,0)";
                                     celdaMatch.Formula = formulaMatch;
 
                                     string dirMatchAbsoluta = celdaMatch.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
@@ -190,7 +190,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                     // FASE 3: TRUCO ARQUITECTÓNICO DE TRADUCCIÓN VÍA FAÇADE
                                     // =========================================================================
                                     string celdaCatRelativa = celdaCat.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
-                                    string formulaFormatCondIngles = $"=AND({celdaCatRelativa}<>\"\", {dirMatchAbsoluta}=TRUE)";
+                                    string formulaFormatCondIngles = $"=AND({celdaCatRelativa}<>\"\", {dirMatchAbsoluta}=1)";
 
                                     // Utilizamos ExcelHelper para traducir a lenguaje local
                                     string formulaFormatCondLocal = ExcelHelper.TraducirFormulaLocal(ws, formulaFormatCondIngles, celdaCat.Row);
@@ -237,7 +237,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         string addressInicio = celdaInicioRango.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
                         string addressFin = celdaFinRango.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
 
-                        string formulaMensajeFinal = $"=IF(COUNTIF({addressInicio}:{addressFin}, TRUE)>0, \"Alerta: Revise el texto ingresado en el Especifique ya que podría existir en las opciones resaltadas en amarillo\", \"\")";
+                        string formulaMensajeFinal = $"=IF(COUNTIF({addressInicio}:{addressFin}, 1)>0, \"Alerta: Revise el texto ingresado en el Especifique ya que podría existir en las opciones resaltadas en amarillo\", \"\")";
 
                         if (rangoMensaje.Count > 1) { rangoMensaje.Merge(); }
                         rangoMensaje.HorizontalAlignment = Excel.XlHAlign.xlHAlignLeft;
