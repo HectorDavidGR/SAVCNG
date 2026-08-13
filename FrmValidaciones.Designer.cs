@@ -86,6 +86,7 @@ namespace SAVCNG_ExcelDNA
             this.tLP_Banner = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
             this.tabPage2 = new System.Windows.Forms.TabPage();
+            this.btnCatalogoMunicipios = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.tableLayoutPanel1.SuspendLayout();
@@ -585,6 +586,7 @@ namespace SAVCNG_ExcelDNA
             this.tLP_RevisionUtilidades.Controls.Add(this.gb_MacroCeldasBloq, 1, 0);
             this.tLP_RevisionUtilidades.Controls.Add(this.gbControlBloqueo, 0, 0);
             this.tLP_RevisionUtilidades.Controls.Add(this.gbMacroColores, 0, 1);
+            this.tLP_RevisionUtilidades.Controls.Add(this.btnCatalogoMunicipios, 1, 1);
             this.tLP_RevisionUtilidades.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tLP_RevisionUtilidades.Location = new System.Drawing.Point(3, 2);
             this.tLP_RevisionUtilidades.Name = "tLP_RevisionUtilidades";
@@ -921,6 +923,16 @@ namespace SAVCNG_ExcelDNA
             this.tabPage2.TabIndex = 0;
             this.tabPage2.Text = "tabPage2";
             // 
+            // btnCatalogoMunicipios
+            // 
+            this.btnCatalogoMunicipios.Location = new System.Drawing.Point(335, 150);
+            this.btnCatalogoMunicipios.Name = "btnCatalogoMunicipios";
+            this.btnCatalogoMunicipios.Size = new System.Drawing.Size(186, 61);
+            this.btnCatalogoMunicipios.TabIndex = 2035;
+            this.btnCatalogoMunicipios.Text = "Catálogos";
+            this.btnCatalogoMunicipios.UseVisualStyleBackColor = true;
+            this.btnCatalogoMunicipios.Click += new System.EventHandler(this.btnCatalogoMunicipios_Click);
+            // 
             // FrmValidaciones
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -1026,5 +1038,6 @@ namespace SAVCNG_ExcelDNA
         private System.Windows.Forms.Button btnAplicarColores;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.CheckBox chkCoordenadas;
+        private System.Windows.Forms.Button btnCatalogoMunicipios;
     }
 }
