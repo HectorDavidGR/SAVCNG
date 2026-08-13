@@ -48,7 +48,11 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 if (resCveEnt is bool && (bool)resCveEnt == false) return new ResultadoValidacion { Exito = false, Mensaje = "Configuración cancelada.", AlertaInyectada = false };
                 celdaClaveEntidad = (Excel.Range)resCveEnt;
 
+                // --- NUEVAS VARIABLES DE DECISIÓN (INTERRUPTORES) ---
                 bool requiereMunicipio = false;
+                bool incluirOtroMunicipio = false;
+                bool incluirNoIdentificado = false;
+
                 DialogResult respMun = MessageBox.Show("¿Deseas agregar también la lista desplegable DEPENDIENTE para el MUNICIPIO?", "SAVCNG - Municipio", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
                 if (respMun == DialogResult.Yes)
@@ -62,6 +66,13 @@ namespace SAVCNG_ExcelDNA.Utilidades
                     object resCveMun = excelApp.InputBox("4. Selecciona la CELDA donde aparecerá la CLAVE DEL MUNICIPIO:", "SAVCNG - Clave Municipio", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                     if (resCveMun is bool && (bool)resCveMun == false) return new ResultadoValidacion { Exito = false, Mensaje = "Configuración cancelada.", AlertaInyectada = false };
                     celdaClaveMunicipio = (Excel.Range)resCveMun;
+
+                    // --- NUEVO: PREGUNTAS DE COMBINACIÓN LÓGICA ---
+                    DialogResult respOtro = MessageBox.Show("¿Deseas incluir la opción 'Otro municipio o demarcación territorial' (Clave 098) en el catálogo?", "Opciones Adicionales", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    incluirOtroMunicipio = (respOtro == DialogResult.Yes);
+
+                    DialogResult respNoId = MessageBox.Show("¿Deseas incluir la opción 'No identificado' (Clave 099) en el catálogo?", "Opciones Adicionales", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    incluirNoIdentificado = (respNoId == DialogResult.Yes);
                 }
 
                 // =====================================================================
@@ -121,34 +132,44 @@ namespace SAVCNG_ExcelDNA.Utilidades
                         entidadesUnicasNombres.Add(nomEnt);
                     }
 
-                    // Corte de estado: Inyectar 098 y 099 al estado anterior
+                    // Corte de estado: Inyectar 098 y 099 CONDICIONADOS
                     if (cveEnt != cveEntAnterior && !string.IsNullOrEmpty(cveEntAnterior))
                     {
-                        // Armamos el CVEGEO correcto uniendo la clave original pura + 098/099
-                        string cveGeo098 = $"{cveEntOriAnterior}098";
-                        string cveGeo099 = $"{cveEntOriAnterior}099";
+                        if (incluirOtroMunicipio)
+                        {
+                            string cveGeo098 = $"{cveEntOriAnterior}098";
+                            datosProcesados.Add(new object[] { cveGeo098, cveEntAnterior, nomEntAnterior, cveGeo098, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
+                        }
 
-                        // Nótese que inyectamos cveGeo09X en la posición 1 (CVEGEO) y en la posición 4 (CVE_MUN)
-                        datosProcesados.Add(new object[] { cveGeo098, cveEntAnterior, nomEntAnterior, cveGeo098, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
-                        datosProcesados.Add(new object[] { cveGeo099, cveEntAnterior, nomEntAnterior, cveGeo099, "No identificado", $"{nomEntAnterior}|No identificado" });
+                        if (incluirNoIdentificado)
+                        {
+                            string cveGeo099 = $"{cveEntOriAnterior}099";
+                            datosProcesados.Add(new object[] { cveGeo099, cveEntAnterior, nomEntAnterior, cveGeo099, "No identificado", $"{nomEntAnterior}|No identificado" });
+                        }
                     }
 
                     datosProcesados.Add(new object[] { cveGeo, cveEnt, nomEnt, cveMun, nomMun, $"{nomEnt}|{nomMun}" });
 
                     // Actualizamos las memorias de rastreo
                     cveEntAnterior = cveEnt;
-                    cveEntOriAnterior = cveEntOri; // Guardamos la clave pura para la siguiente vuelta
+                    cveEntOriAnterior = cveEntOri;
                     nomEntAnterior = nomEnt;
                 }
 
-                // Cierre del ciclo: Inyectar 098 y 099 a la ÚLTIMA entidad
+                // Cierre del ciclo: Inyectar 098 y 099 a la ÚLTIMA entidad CONDICIONADOS
                 if (!string.IsNullOrEmpty(cveEntAnterior))
                 {
-                    string cveGeo098 = $"{cveEntOriAnterior}098";
-                    string cveGeo099 = $"{cveEntOriAnterior}099";
+                    if (incluirOtroMunicipio)
+                    {
+                        string cveGeo098 = $"{cveEntOriAnterior}098";
+                        datosProcesados.Add(new object[] { cveGeo098, cveEntAnterior, nomEntAnterior, cveGeo098, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
+                    }
 
-                    datosProcesados.Add(new object[] { cveGeo098, cveEntAnterior, nomEntAnterior, cveGeo098, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
-                    datosProcesados.Add(new object[] { cveGeo099, cveEntAnterior, nomEntAnterior, cveGeo099, "No identificado", $"{nomEntAnterior}|No identificado" });
+                    if (incluirNoIdentificado)
+                    {
+                        string cveGeo099 = $"{cveEntOriAnterior}099";
+                        datosProcesados.Add(new object[] { cveGeo099, cveEntAnterior, nomEntAnterior, cveGeo099, "No identificado", $"{nomEntAnterior}|No identificado" });
+                    }
                 }
 
                 // Convertir listas a matrices de inyección
