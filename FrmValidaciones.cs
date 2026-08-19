@@ -102,7 +102,7 @@ namespace SAVCNG_ExcelDNA
                 "Busca el código 'NS' en el(los) rango(s) establecido(s). Si lo encuentra, te avisa con una alerta en color amarillo para que puedas revisarlas.");
 
             toolTipValidaciones.SetToolTip(this.chkSumas,
-                "Motor de sumas cruzadas horizontales (FormatConditions) y generación de fórmulas automáticas (Σ) verticales.\nPermite apilamiento jerárquico multinivel.");
+                "Valida que la suma de los desagregados coincida con el Total reportado (considera 'NS').Adicional permite agregar la fila de totales (Σ) al finalizar. (v1 Sin subtotales)");
             
         }
 

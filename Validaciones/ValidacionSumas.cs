@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Consumimos nuestra Fachada y el DTO
+using SAVCNG_ExcelDNA.Core; // Consumo estricto de Fachada y DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
     public class ValidacionSumas : IValidacionExcel
     {
-        // 1. EL CONTRATO EXIGE DEVOLVER EL DTO
+        // 1. EL CONTRATO EXIGE DEVOLVER EL DTO (DUMB VIEW PATTERN)
         public ResultadoValidacion Ejecutar(Excel.Application excelApp, Excel.Workbook libroCenso, Excel.Range rangoCapturado)
         {
             Excel.Range rangoTotal = null;
             Excel.Range rangoDesagregados = null;
-            Excel.Range rangoTotalesVerticales = null;
             Excel.Range rangoAlerta = null;
             Excel.Range seleccionAuxiliar = null;
+            Excel.Range rangoTotalesVerticales = null;
             Excel.Worksheet wsActual = null;
 
             try
@@ -29,19 +29,15 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 if (resTotal is bool && (bool)resTotal == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección del Total cancelada.", AlertaInyectada = false };
                 rangoTotal = (Excel.Range)resTotal;
 
-                object resDesagregados = excelApp.InputBox("2. Selecciona las COLUMNAS de los DESAGREGADOS (Usa CTRL para varias):", "SAVCNG - Desagregados", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                object resDesagregados = excelApp.InputBox("2. Selecciona las COLUMNAS de los DESAGREGADOS (Usa CTRL para varias por separado):", "SAVCNG - Desagregados", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 if (resDesagregados is bool && (bool)resDesagregados == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección de Desagregados cancelada.", AlertaInyectada = false };
                 rangoDesagregados = (Excel.Range)resDesagregados;
 
-                object resVerticales = excelApp.InputBox("3. Selecciona la FILA de Sumatoria Vertical Sigma (Σ):", "SAVCNG - Sigma", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
-                if (resVerticales is bool && (bool)resVerticales == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección de fila Sigma cancelada.", AlertaInyectada = false };
-                rangoTotalesVerticales = (Excel.Range)resVerticales;
-
-                object resAlerta = excelApp.InputBox("4. Selecciona el rango destino para el MENSAJE DE ERROR:", "SAVCNG - Alerta Global", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                object resAlerta = excelApp.InputBox("3. Selecciona el rango destino para el MENSAJE DE ERROR:", "SAVCNG - Alerta Global", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 if (resAlerta is bool && (bool)resAlerta == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección de rango de alerta cancelada.", AlertaInyectada = false };
                 rangoAlerta = (Excel.Range)resAlerta;
 
-                object resAuxiliar = excelApp.InputBox("5. Selecciona UNA CELDA en una columna libre (ej. AF) para inyectar el Motor Auxiliar:", "SAVCNG - Arquitectura de Memoria", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                object resAuxiliar = excelApp.InputBox("4. Selecciona UNA CELDA en una columna libre (ej. AF) para insertar formulas auxiliares.\nADVERTENCIA: Considere un espacio libre N filas. (N = numerales de la pregunta o rango seleccionado)", "SAVCNG - Arquitectura de Memoria", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 if (resAuxiliar is bool && (bool)resAuxiliar == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección de celda auxiliar cancelada.", AlertaInyectada = false };
                 seleccionAuxiliar = (Excel.Range)resAuxiliar;
 
@@ -51,6 +47,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 System.Collections.Generic.HashSet<string> preguntasUnicas = new System.Collections.Generic.HashSet<string>();
                 int totalAreasCap = rangoCapturado.Areas.Count;
 
+                // RASTREO ZERO LEAKS
                 for (int i = 1; i <= totalAreasCap; i++)
                 {
                     Excel.Range areaInd = null;
@@ -68,7 +65,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 wsActual = (Excel.Worksheet)rangoCapturado.Worksheet;
 
                 // =========================================================================
-                // A. DETECCIÓN INTELIGENTE DE CELDAS COMBINADAS (TOTAL)
+                // A. DETECCIÓN INTELIGENTE DE LETRAS (TOTAL)
                 // =========================================================================
                 Excel.Range primeraCeldaTotal = null;
                 Excel.Range mergeTotal = null;
@@ -107,7 +104,6 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 System.Collections.Generic.List<string> letrasDesagregados = new System.Collections.Generic.List<string>();
                 int totalAreasDesagregados = rangoDesagregados.Areas.Count;
 
-                // RASTREO ZERO LEAKS: Reemplazo de los dos foreach anidados
                 for (int i = 1; i <= totalAreasDesagregados; i++)
                 {
                     Excel.Range areaDesagregado = null;
@@ -153,18 +149,17 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 int numDesagregados = letrasDesagregados.Count;
 
                 // =========================================================================
-                // C. MÁQUINA DE ESTADOS (INYECCIÓN DE MOTOR AUXILIAR FILA POR FILA)
+                // C. MÁQUINA DE ESTADOS (INYECCIÓN DE MOTOR AUXILIAR XP READY)
                 // =========================================================================
                 for (int f = filaInicio; f <= filaFin; f++)
                 {
                     string tRef = $"${letraTotal}{f}";
 
-                    // Motores de análisis dinámicos
                     string countNS = string.Join("+", letrasDesagregados.ConvertAll(l => $"COUNTIF(${l}{f},\"NS\")"));
                     string sumaDesagregados = $"SUM({string.Join(",", letrasDesagregados.ConvertAll(l => $"${l}{f}"))})";
                     string countNum = $"COUNT({string.Join(",", letrasDesagregados.ConvertAll(l => $"${l}{f}"))})";
 
-                    string condAritmetica = $"AND(ISNUMBER({tRef}), ({countNS})=0, {tRef}<>{sumaDesagregados})";
+                    string condAritmetica = $"AND(ISNUMBER({tRef}), OR(({countNS})=0, {countNum}>0), {tRef}<>{sumaDesagregados})";
                     string condCero = $"AND(ISNUMBER({tRef}), {tRef}=0, ({countNS})>0)";
                     string condNS = $"AND(UPPER(TRIM({tRef}))=\"NS\", OR({countNum}={numDesagregados}, {sumaDesagregados}>0))";
 
@@ -183,42 +178,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
-                // D. INYECCIÓN DEL FORMATO CONDICIONAL (VINCULADO AL MOTOR)
-                // =========================================================================
-                if (rangoCapturado.FormatConditions.Count > 0)
-                {
-                    excelApp.ScreenUpdating = true;
-                    DialogResult respFormato = MessageBox.Show("Se detectaron reglas previas.\n¿Deseas CONSERVARLAS e integrar esta nueva capa?\nSÍ = Apilar\nNO = Borrar", "SAVCNG - Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
-                    excelApp.ScreenUpdating = false;
-
-                    // ABORTO TOTAL 6: DTO
-                    if (respFormato == DialogResult.Cancel) return new ResultadoValidacion { Exito = false, Mensaje = "Operación cancelada en la evaluación de formatos previos.", AlertaInyectada = false };
-
-                    if (respFormato == DialogResult.No) { rangoCapturado.FormatConditions.Delete(); }
-                }
-
-                // Traducción de Formato Condicional vía Façade
-                string fSombreadoIngles = $"=${colAuxLetra}{filaInicio}=1";
-                string fcLocal = ExcelHelper.TraducirFormulaLocal(wsActual, fSombreadoIngles, filaInicio);
-
-                Excel.FormatCondition fcError = null;
-                try
-                {
-                    fcError = (Excel.FormatCondition)rangoCapturado.FormatConditions.Add(Excel.XlFormatConditionType.xlExpression, Type.Missing, fcLocal);
-                    fcError.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
-                    fcError.Font.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
-                    fcError.StopIfTrue = false;
-                }
-                finally
-                {
-                    ExcelHelper.LiberarCom(fcError);
-                }
-
-                // =========================================================================
-                // E. INYECCIÓN DEL MENSAJE DE ALERTA GLOBAL
+                // E. INYECCIÓN DEL MENSAJE DE ALERTA GLOBAL (RADAR AUTOMÁTICO XP READY)
                 // =========================================================================
                 string auxRange = $"${colAuxLetra}${filaInicio}:${colAuxLetra}${filaFin}";
-                string formulaAlertaFinal = $"=IF(SUM({auxRange})>0, \"Favor de revisar la suma y consistencia de totales y/o subtotales por filas (numéricos y NS)\", \"\")";
+
+                // FÓRMULA RADAR OPTIMIZADA: Extraemos el número de fila consecutivo directamente con MATCH
+                string formulaAlertaFinal = $"=IF(SUM({auxRange})>0, \"Error: Se detectaron \" & SUM({auxRange}) & \" error(es) de sumas/consistencia. Revisar a partir del numeral \" & MATCH(1, {auxRange}, 0), \"\")";
 
                 if (rangoAlerta.Count > 1) { rangoAlerta.Merge(); }
                 rangoAlerta.Formula = formulaAlertaFinal;
@@ -231,44 +196,75 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 rangoAlerta.WrapText = true;
 
                 // =========================================================================
-                // F. INYECCIÓN OPTIMIZADA DE SUMATORIAS VERTICALES (SIGMAS)
+                // F. INYECCIÓN OPTIMIZADA DE SUMATORIAS VERTICALES (SIGMAS) - ¡PASO FINAL!
                 // =========================================================================
-                System.Collections.Generic.List<string> sigmasProcesados = new System.Collections.Generic.List<string>();
-                int totalSigmas = rangoTotalesVerticales.Cells.Count;
+                excelApp.ScreenUpdating = true;
 
-                // RASTREO ZERO LEAKS: Reemplazo de foreach
-                for (int k = 1; k <= totalSigmas; k++)
+                DialogResult respuestaSigma = MessageBox.Show(
+                    "¿Deseas agregar la validación de sumatoria vertical (sigma)?",
+                    "SAVCNG - Sumatorias Verticales",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                string mensajeExitoFinal = "";
+                string funcionalidadAudit = "Fórmulas (Auxiliar + Radar Automático)";
+
+                if (respuestaSigma == DialogResult.Yes)
                 {
-                    Excel.Range celdaSumatoria = null;
-                    Excel.Range mArea = null;
-                    Excel.Range tl = null;
+                    object resVerticales = excelApp.InputBox("5. Selecciona la FILA de Sumatoria Vertical Sigma (Σ):", "SAVCNG - Sigma", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
 
-                    try
+                    if (resVerticales is bool && (bool)resVerticales == false)
                     {
-                        celdaSumatoria = (Excel.Range)rangoTotalesVerticales.Cells[k];
-                        mArea = celdaSumatoria.MergeArea;
-                        tl = (Excel.Range)mArea.Cells[1, 1];
-                        string addr = tl.Address;
+                        return new ResultadoValidacion { Exito = false, Mensaje = "Selección de fila Sigma cancelada. La validación base fue aplicada, pero el proceso fue interrumpido.", AlertaInyectada = false };
+                    }
 
-                        if (!sigmasProcesados.Contains(addr))
+                    rangoTotalesVerticales = (Excel.Range)resVerticales;
+                    excelApp.ScreenUpdating = false;
+
+                    System.Collections.Generic.List<string> sigmasProcesados = new System.Collections.Generic.List<string>();
+                    int totalSigmas = rangoTotalesVerticales.Cells.Count;
+
+                    for (int k = 1; k <= totalSigmas; k++)
+                    {
+                        Excel.Range celdaSumatoria = null;
+                        Excel.Range mArea = null;
+                        Excel.Range tl = null;
+
+                        try
                         {
-                            sigmasProcesados.Add(addr);
-                            string lCol = addr.Split('$')[1];
-                            string rSuma = $"{lCol}{filaInicio}:{lCol}{filaFin}";
+                            celdaSumatoria = (Excel.Range)rangoTotalesVerticales.Cells[k];
+                            mArea = celdaSumatoria.MergeArea;
+                            tl = (Excel.Range)mArea.Cells[1, 1];
+                            string addr = tl.Address;
 
-                            string fSigma = $"=IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},\"NS\")>0),\"NS\"," +
-                                            $"IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},0)>0),0," +
-                                            $"IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},\"NA\")>0),\"NA\"," +
-                                            $"SUM({rSuma}))))";
-                            tl.Formula = fSigma; // Las sumatorias básicas se inyectan en inglés directo sin problemas
+                            if (!sigmasProcesados.Contains(addr))
+                            {
+                                sigmasProcesados.Add(addr);
+                                string lCol = addr.Split('$')[1];
+                                string rSuma = $"{lCol}{filaInicio}:{lCol}{filaFin}";
+
+                                string fSigma = $"=IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},\"NS\")>0),\"NS\"," +
+                                                $"IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},0)>0),0," +
+                                                $"IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},\"NA\")>0),\"NA\"," +
+                                                $"SUM({rSuma}))))";
+                                tl.Formula = fSigma;
+                            }
+                        }
+                        finally
+                        {
+                            ExcelHelper.LiberarCom(tl);
+                            ExcelHelper.LiberarCom(mArea);
+                            ExcelHelper.LiberarCom(celdaSumatoria);
                         }
                     }
-                    finally
-                    {
-                        ExcelHelper.LiberarCom(tl);
-                        ExcelHelper.LiberarCom(mArea);
-                        ExcelHelper.LiberarCom(celdaSumatoria);
-                    }
+
+                    mensajeExitoFinal = "Validación de Sumas y Sumatorias Verticales (Sigma) insertadas con éxito.";
+                    funcionalidadAudit += " + Sigma Vertical";
+                }
+                else
+                {
+                    mensajeExitoFinal = "Validaciones de sumas insertadas con éxito (Se omitió la Sumatoria Vertical).";
                 }
 
                 // =========================================================================
@@ -279,30 +275,28 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     preguntasDetectadas,
                     "Consistencia Aritmética (Sumas)",
                     rangoCapturado.Address.Replace("$", ""),
-                    "Fórmulas + FormatConditions"
+                    funcionalidadAudit
                 );
 
-                // ÉXITO TOTAL: DTO
                 return new ResultadoValidacion
                 {
                     Exito = true,
-                    Mensaje = "Motor de Validación, Alerta y Sumatorias inyectados con éxito (Soporte Merge).",
+                    Mensaje = mensajeExitoFinal,
                     AlertaInyectada = true
                 };
             }
             catch (Exception ex)
             {
-                // ERROR CRÍTICO: DTO
                 return new ResultadoValidacion
                 {
                     Exito = false,
-                    Mensaje = "Error crítico en el motor de sumas: " + ex.Message,
+                    Mensaje = "Error crítico en la validación de sumas: " + ex.Message,
                     AlertaInyectada = false
                 };
             }
             finally
             {
-                // Limpieza absoluta de referencias COM base
+                // Limpieza absoluta de referencias COM base (Zero Leaks Estricto)
                 ExcelHelper.LiberarCom(rangoTotal);
                 ExcelHelper.LiberarCom(rangoDesagregados);
                 ExcelHelper.LiberarCom(rangoTotalesVerticales);
