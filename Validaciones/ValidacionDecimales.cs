@@ -140,11 +140,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                         if (esValidacionEnteros)
                         {
-                            area.NumberFormat = "General";
+                            area.NumberFormat = "#,##0";
                         }
                         else
                         {
-                            area.NumberFormat = "[=0]0;0.###############";
+                            area.NumberFormat = "General";
                         }
 
                         primeraCelda = (Excel.Range)area.Cells[1, 1];

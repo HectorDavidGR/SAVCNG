@@ -29,11 +29,17 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 if (resTotal is bool && (bool)resTotal == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección del Total cancelada.", AlertaInyectada = false };
                 rangoTotal = (Excel.Range)resTotal;
 
+                // NUEVO: Aplicamos formato de miles nativo. No afecta textos como "NS" o "NA".
+                rangoTotal.NumberFormat = "#,##0";
+
                 object resDesagregados = excelApp.InputBox("2. Selecciona las COLUMNAS de los DESAGREGADOS (Usa CTRL para varias por separado):", "SAVCNG - Desagregados", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 if (resDesagregados is bool && (bool)resDesagregados == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección de Desagregados cancelada.", AlertaInyectada = false };
                 rangoDesagregados = (Excel.Range)resDesagregados;
 
-                object resAlerta = excelApp.InputBox("3. Selecciona el rango destino para el MENSAJE DE ERROR:", "SAVCNG - Alerta Global", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                // NUEVO: Aplicamos formato de miles a los desagregados
+                rangoDesagregados.NumberFormat = "#,##0";
+
+                object resAlerta = excelApp.InputBox("3. Selecciona el rango destino para el MENSAJE DE ERROR", "SAVCNG - Alerta Global", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 if (resAlerta is bool && (bool)resAlerta == false) return new ResultadoValidacion { Exito = false, Mensaje = "Selección de rango de alerta cancelada.", AlertaInyectada = false };
                 rangoAlerta = (Excel.Range)resAlerta;
 
@@ -149,13 +155,15 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 int numDesagregados = letrasDesagregados.Count;
 
                 // =========================================================================
-                // C. MÁQUINA DE ESTADOS (INYECCIÓN DE MOTOR AUXILIAR XP READY)
+                // C. MÁQUINA DE ESTADOS (INSERCIÓN DE MOTOR AUXILIAR XP READY)
                 // =========================================================================
                 for (int f = filaInicio; f <= filaFin; f++)
                 {
                     string tRef = $"${letraTotal}{f}";
 
                     string countNS = string.Join("+", letrasDesagregados.ConvertAll(l => $"COUNTIF(${l}{f},\"NS\")"));
+                    string countNA = string.Join("+", letrasDesagregados.ConvertAll(l => $"COUNTIF(${l}{f},\"NA\")"));
+
                     string sumaDesagregados = $"SUM({string.Join(",", letrasDesagregados.ConvertAll(l => $"${l}{f}"))})";
                     string countNum = $"COUNT({string.Join(",", letrasDesagregados.ConvertAll(l => $"${l}{f}"))})";
 
@@ -163,7 +171,13 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     string condCero = $"AND(ISNUMBER({tRef}), {tRef}=0, ({countNS})>0)";
                     string condNS = $"AND(UPPER(TRIM({tRef}))=\"NS\", OR({countNum}={numDesagregados}, {sumaDesagregados}>0))";
 
-                    string formulaInglesAux = $"=IF(OR({condAritmetica}, {condCero}, {condNS}), 1, 0)";
+                    // Validación estricta "Todo o Nada" para NA
+                    string isTotalNA = $"IF(UPPER(TRIM({tRef}))=\"NA\", 1, 0)";
+                    string totalNAs = $"({isTotalNA} + {countNA})";
+                    string condNA = $"AND({totalNAs} > 0, {totalNAs} <> {numDesagregados + 1})";
+
+                    // Ensamblaje final del motor evaluador
+                    string formulaInglesAux = $"=IF(OR({condAritmetica}, {condCero}, {condNS}, {condNA}), 1, 0)";
 
                     Excel.Range celdaDestinoAux = null;
                     try
@@ -178,12 +192,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
-                // E. INYECCIÓN DEL MENSAJE DE ALERTA GLOBAL (RADAR AUTOMÁTICO XP READY)
+                // E. INSERCIÓN DEL MENSAJE DE ALERTA GLOBAL (RADAR AUTOMÁTICO XP READY)
                 // =========================================================================
                 string auxRange = $"${colAuxLetra}${filaInicio}:${colAuxLetra}${filaFin}";
 
-                // FÓRMULA RADAR OPTIMIZADA: Extraemos el número de fila consecutivo directamente con MATCH
-                string formulaAlertaFinal = $"=IF(SUM({auxRange})>0, \"Error: Se detectaron \" & SUM({auxRange}) & \" error(es) de sumas/consistencia. Revisar a partir del numeral \" & MATCH(1, {auxRange}, 0), \"\")";
+                // FÓRMULA RADAR GRAMATICAL: Discrimina entre Singular y Plural de forma nativa
+                string formulaAlertaFinal = $"=IF(SUM({auxRange})=0, \"\",IF(SUM({auxRange})=1, \"Se detectó 1 error\", \"Se detectaron \" & SUM({auxRange}) & \" errores\") & \" de inconsistencia en sumas. Revisar a partir del numeral \" & MATCH(1, {auxRange}, 0))";
 
                 if (rangoAlerta.Count > 1) { rangoAlerta.Merge(); }
                 rangoAlerta.Formula = formulaAlertaFinal;
@@ -196,7 +210,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 rangoAlerta.WrapText = true;
 
                 // =========================================================================
-                // F. INYECCIÓN OPTIMIZADA DE SUMATORIAS VERTICALES (SIGMAS) - ¡PASO FINAL!
+                // F. INSERCIÓN OPTIMIZADA DE SUMATORIAS VERTICALES (SIGMAS) - ¡PASO FINAL!
                 // =========================================================================
                 excelApp.ScreenUpdating = true;
 
@@ -208,7 +222,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 );
 
                 string mensajeExitoFinal = "";
-                string funcionalidadAudit = "Fórmulas (Auxiliar + Radar Automático)";
+                string funcionalidadAudit = "Fórmulas (Auxiliar + Radar Dinámico)";
 
                 if (respuestaSigma == DialogResult.Yes)
                 {
@@ -249,6 +263,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                                 $"IF(AND(SUM({rSuma})=0,COUNTIF({rSuma},\"NA\")>0),\"NA\"," +
                                                 $"SUM({rSuma}))))";
                                 tl.Formula = fSigma;
+
+                                // REQUERIMIENTO CUMPLIDO: Formato Negritas (Bold) y separación por miles
+                                tl.Font.Bold = true;
+                                tl.NumberFormat = "#,##0";
                             }
                         }
                         finally
@@ -268,7 +286,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
-                // FASE FINAL: AUDITORÍA Y NOTIFICACIÓN (DTO)
+                // FASE FINAL: REGISTRO EN BITÁCORA
                 // =========================================================================
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso,
