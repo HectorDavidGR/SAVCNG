@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Consumo obligatorio de la Fachada y el DTO
+using SAVCNG_ExcelDNA.Core; // Consumo obligatorio de la Fachada y el DTO[cite: 3, 4]
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
@@ -56,7 +56,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
-                // FASE 2: UX DE CONFIGURACIÓN DE LÍMITES Y ÁREA DE ALERTA
+                // FASE 2: UX DE CONFIGURACIÓN DE LÍMITES Y ÁREA DE BANDERAS
                 // =========================================================================
                 object resInferior = excelApp.InputBox("Indica el AÑO MÍNIMO aceptado:\n\n(Ej. 1900 o 1990).", "SAVCNG - Límite Inferior", "1900", Type.Missing, Type.Missing, Type.Missing, Type.Missing, 2);
                 if (resInferior is bool && (bool)resInferior == false) return new ResultadoValidacion { Exito = false, Mensaje = "Cancelado.", AlertaInyectada = false };
@@ -73,12 +73,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 try
                 {
                     rangoAlertaDefinido = (Excel.Range)excelApp.InputBox(
-                        "Selecciona el RANGO donde se inyectará el mensaje de error global unificado:",
-                        "SAVCNG - Ubicación de Alerta Visual", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                        "Selecciona la celda INICIAL de la columna auxiliar donde se inyectará la bandera:\n\n(1 = Error, 0 = Correcto).",
+                        "SAVCNG - Columna Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 }
                 catch
                 {
-                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de alerta cancelada.", AlertaInyectada = false };
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de bandera cancelada.", AlertaInyectada = false };
                 }
 
                 // =========================================================================
@@ -86,6 +86,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 bool tieneValidacionPrevia = false;
                 bool tieneFormatosPrevios = false;
+                bool tieneAlertaPrevia = false;
                 bool limpiarFormatos = true;
 
                 try { var tipo = rangoCapturado.Validation.Type; tieneValidacionPrevia = true; } catch { }
@@ -99,14 +100,27 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 catch { }
                 finally { ExcelHelper.LiberarCom(conds); }
 
-                if (tieneValidacionPrevia || tieneFormatosPrevios)
+                Excel.Range celdaAlertaBaseCheck = null;
+                try
+                {
+                    celdaAlertaBaseCheck = (Excel.Range)rangoAlertaDefinido.Cells[1, 1];
+                    string fCheck = celdaAlertaBaseCheck.Formula?.ToString() ?? "";
+                    if (fCheck.StartsWith("=") || (celdaAlertaBaseCheck.Value2 != null && !string.IsNullOrEmpty(celdaAlertaBaseCheck.Value2.ToString())))
+                    {
+                        tieneAlertaPrevia = true;
+                    }
+                }
+                catch { }
+                finally { ExcelHelper.LiberarCom(celdaAlertaBaseCheck); }
+
+                if (tieneValidacionPrevia || tieneFormatosPrevios || tieneAlertaPrevia)
                 {
                     DialogResult resp = MessageBox.Show(
-                        "Se detectaron reglas de captura o colores previos en el rango seleccionado.\n\n" +
-                        "NOTA: Las reglas de validación estricta (restricción de escritura) se sobreescribirán obligatoriamente.\n\n" +
-                        "¿Deseas MANTENER los colores/alertas (Formatos Condicionales) aplicados previamente para que se apilen?\n\n" +
-                        "SÍ = Apilar los nuevos colores sobre los existentes.\n" +
-                        "NO = Borrar todo el historial visual y limpiar el lienzo antes de aplicar.",
+                        "Se detectaron reglas de captura, colores O FÓRMULAS PREVIAS en los rangos seleccionados.\n\n" +
+                        "NOTA: Las reglas de validación estricta se sobreescribirán obligatoriamente.\n\n" +
+                        "¿Deseas MANTENER los colores y las FÓRMULAS aplicadas previamente para que se apilen matemáticamente?\n\n" +
+                        "SÍ = Acumulará los errores (1) sobre la evaluación existente.\n" +
+                        "NO = Borrar todo el historial visual, limpiar las celdas e inyectar desde cero.",
                         "SAVCNG - Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
 
                     if (resp == DialogResult.Cancel)
@@ -135,18 +149,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 excelApp.ScreenUpdating = false;
 
                 // =========================================================================
-                // FASE 4: INYECCIÓN MATRICIAL (NUEVA REGLA NS ATÍPICO)
+                // FASE 4: INYECCIÓN MATRICIAL (EVALUACIÓN POR FILA EN COLUMNA AUXILIAR)
                 // =========================================================================
                 try
                 {
-                    rangoAlertaDefinido.Merge();
-                    rangoAlertaDefinido.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
-                    rangoAlertaDefinido.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
-                    rangoAlertaDefinido.Font.Color = 255;
-                    rangoAlertaDefinido.Font.Bold = true;
-
-                    string condAno = ""; string condMes = ""; string condDia = ""; string condAtipicoNS = "";
-
                     int colorFondoRojo = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(255, 199, 206));
                     int colorTextoRojo = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.FromArgb(156, 0, 6));
 
@@ -156,8 +162,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                         Excel.Range celdaDia = null, celdaMes = null, celdaAno = null;
                         Excel.Range mDia = null, mMes = null, mAno = null;
                         Excel.Range rangoDia = null, rangoMes = null, rangoAno = null;
-
+                        Excel.Range colEvalDia = null, colEvalMes = null, colEvalAno = null;
                         Excel.FormatCondition fcDia = null, fcMes = null, fcAno = null;
+
+                        Excel.Range celdaBaseAux = null;
+                        Excel.Range targetAux = null;
+                        Excel.Range primeraCeldaAux = null;
 
                         try
                         {
@@ -178,21 +188,18 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             rangoMes = celdaMes.get_Resize(area.Rows.Count, wMes);
                             rangoAno = celdaAno.get_Resize(area.Rows.Count, wAno);
 
+                            colEvalDia = celdaDia.get_Resize(area.Rows.Count, 1);
+                            colEvalMes = celdaMes.get_Resize(area.Rows.Count, 1);
+                            colEvalAno = celdaAno.get_Resize(area.Rows.Count, 1);
+
                             rangoDia.NumberFormat = "00";
                             rangoMes.NumberFormat = "00";
                             rangoAno.NumberFormat = "0000";
-
-                            string dirDia = rangoDia.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
-                            string dirMes = rangoMes.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
-                            string dirAno = rangoAno.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
 
                             string relDia = celdaDia.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
                             string relMes = celdaMes.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
                             string relAno = celdaAno.get_Address(false, false, Excel.XlReferenceStyle.xlA1, false);
 
-                            // =================================================================
-                            // INYECCIÓN 1: DATA VALIDATION (Incorpora bloqueo por NS atípico)
-                            // =================================================================
                             string formDiaEng = $"=OR(TRIM({relDia})=\"NS\", TRIM({relDia})=\"NA\", AND(ISNUMBER({relDia}), {relDia}>0, {relDia}<=IF(AND(ISNUMBER({relMes}), ISNUMBER({relAno})), DAY(DATE({relAno}, {relMes}+1, 0)), 31), NOT(OR(TRIM({relMes})=\"NS\", TRIM({relMes})=\"NA\"))))";
                             string formMesEng = $"=OR(TRIM({relMes})=\"NS\", TRIM({relMes})=\"NA\", AND(ISNUMBER({relMes}), {relMes}>=1, {relMes}<=12, NOT(OR(TRIM({relAno})=\"NS\", TRIM({relAno})=\"NA\"))))";
                             string formAnoEng = $"=OR(TRIM({relAno})=\"NS\", TRIM({relAno})=\"NA\", AND(ISNUMBER({relAno}), {relAno}>={minYear}, {relAno}<={maxYear}))";
@@ -206,10 +213,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             rangoAno.Validation.Add(Excel.XlDVType.xlValidateCustom, Excel.XlDVAlertStyle.xlValidAlertStop, Excel.XlFormatConditionOperator.xlBetween, ExcelHelper.TraducirFormulaLocal(wsActual, formAnoEng, area.Row), Type.Missing);
                             rangoAno.Validation.IgnoreBlank = true; rangoAno.Validation.ShowError = true;
 
-                            // =================================================================
-                            // INYECCIÓN 2: FORMAT CONDITIONS (Detecta exactamente quién falló el NS)
-                            // =================================================================
-                            string fcDiaEng = $"=AND(ISNUMBER({relDia}), OR({relDia}>IF(AND(ISNUMBER({relMes}), ISNUMBER({relAno})), DAY(DATE({relAno}, {relMes}+1, 0)), 31), TRIM({relMes})=\"NS\", TRIM({relMes})=\"NA\"))";
+                            string safeRelAno = $"IF(ISNUMBER({relAno}), {relAno}, 2000)";
+                            string safeRelMes = $"IF(ISNUMBER({relMes}), {relMes}, 1)";
+
+                            string fcDiaEng = $"=AND(ISNUMBER({relDia}), OR({relDia}>DAY(DATE({safeRelAno}, {safeRelMes}+1, 0)), TRIM({relMes})=\"NS\", TRIM({relMes})=\"NA\"))";
                             string fcMesEng = $"=AND(ISNUMBER({relMes}), OR({relMes}<1, {relMes}>12, TRIM({relAno})=\"NS\", TRIM({relAno})=\"NA\"))";
                             string fcAnoEng = $"=AND(ISNUMBER({relAno}), OR({relAno}<{minYear}, {relAno}>{maxYear}))";
 
@@ -222,18 +229,52 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             fcAno = (Excel.FormatCondition)rangoAno.FormatConditions.Add(Excel.XlFormatConditionType.xlExpression, Type.Missing, ExcelHelper.TraducirFormulaLocal(wsActual, fcAnoEng, area.Row));
                             fcAno.Interior.Color = colorFondoRojo; fcAno.Font.Color = colorTextoRojo;
 
-                            // =================================================================
-                            // ACUMULADORES GLOBALES (+ condAtipicoNS)
-                            // =================================================================
-                            condAno += $"SUMPRODUCT(--ISNUMBER({dirAno}), --(({dirAno}>{maxYear})+({dirAno}<{minYear})))+";
-                            condMes += $"SUMPRODUCT(--ISNUMBER({dirMes}), --(({dirMes}>12)+({dirMes}<1)))+";
-                            condDia += $"SUMPRODUCT(--ISNUMBER({dirDia}), --ISNUMBER({dirMes}), --ISNUMBER({dirAno}), --({dirDia}>DAY(DATE({dirAno}, {dirMes}+1, 0))))+";
+                            int offsetFilas = area.Row - primerArea.Row;
+                            celdaBaseAux = (Excel.Range)rangoAlertaDefinido.Cells[1, 1];
+                            targetAux = celdaBaseAux.get_Offset(offsetFilas, 0).get_Resize(area.Rows.Count, 1);
 
-                            // Matemática de vectores: Usa '+' en lugar de OR() para compatibilidad absoluta en sumatorias booleanas
-                            condAtipicoNS += $"SUMPRODUCT(--ISNUMBER({dirDia}), --((TRIM({dirMes})=\"NS\")+(TRIM({dirMes})=\"NA\")>0)) + SUMPRODUCT(--ISNUMBER({dirMes}), --((TRIM({dirAno})=\"NS\")+(TRIM({dirAno})=\"NA\")>0))+";
+                            targetAux.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                            targetAux.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
+                            targetAux.Font.Bold = true;
+
+                            string formulaVieja = "";
+                            primeraCeldaAux = (Excel.Range)targetAux.Cells[1, 1];
+
+                            if (primeraCeldaAux.HasFormula != null && (bool)primeraCeldaAux.HasFormula)
+                            {
+                                string fv = primeraCeldaAux.Formula.ToString();
+                                if (fv.StartsWith("=")) formulaVieja = fv.Substring(1);
+                            }
+                            else
+                            {
+                                string txt = primeraCeldaAux.Value2?.ToString() ?? "";
+                                if (!string.IsNullOrEmpty(txt)) formulaVieja = txt;
+                            }
+
+                            string condErrorEng = $"OR(" +
+                                $"AND(ISNUMBER({relDia}), OR({relDia}>DAY(DATE({safeRelAno}, {safeRelMes}+1, 0)), TRIM({relMes})=\"NS\", TRIM({relMes})=\"NA\")), " +
+                                $"AND(ISNUMBER({relMes}), OR({relMes}<1, {relMes}>12, TRIM({relAno})=\"NS\", TRIM({relAno})=\"NA\")), " +
+                                $"AND(ISNUMBER({relAno}), OR({relAno}<{minYear}, {relAno}>{maxYear}))" +
+                            $")";
+
+                            string logicaNueva = $"IF({condErrorEng}, 1, 0)";
+                            string formulaAlertaEng = "";
+
+                            if (!string.IsNullOrEmpty(formulaVieja) && !limpiarFormatos)
+                            {
+                                formulaAlertaEng = $"=IF(SUM({formulaVieja}, {logicaNueva})>0, 1, 0)";
+                            }
+                            else
+                            {
+                                formulaAlertaEng = $"={logicaNueva}";
+                            }
+
+                            targetAux.FormulaLocal = ExcelHelper.TraducirFormulaLocal(wsActual, formulaAlertaEng, area.Row);
                         }
                         finally
                         {
+                            ExcelHelper.LiberarCom(primeraCeldaAux); ExcelHelper.LiberarCom(targetAux); ExcelHelper.LiberarCom(celdaBaseAux);
+                            ExcelHelper.LiberarCom(colEvalAno); ExcelHelper.LiberarCom(colEvalMes); ExcelHelper.LiberarCom(colEvalDia);
                             ExcelHelper.LiberarCom(fcAno); ExcelHelper.LiberarCom(fcMes); ExcelHelper.LiberarCom(fcDia);
                             ExcelHelper.LiberarCom(rangoAno); ExcelHelper.LiberarCom(rangoMes); ExcelHelper.LiberarCom(rangoDia);
                             ExcelHelper.LiberarCom(mAno); ExcelHelper.LiberarCom(mMes); ExcelHelper.LiberarCom(mDia);
@@ -241,15 +282,6 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             ExcelHelper.LiberarCom(area);
                         }
                     }
-
-                    // ENSAMBLAJE FINAL DE ALERTAS
-                    condAno += "0"; condMes += "0"; condDia += "0"; condAtipicoNS += "0";
-                    string formulaAlertaEng = $"=IF(({condAno})>0, \"Error: Año fuera de límite establecido.\", " +
-                                              $"IF(({condMes})>0, \"Error: Mes inválido detectado.\", " +
-                                              $"IF(({condAtipicoNS})>0, \"Error: Inconsistencia de fecha.\", " +
-                                              $"IF(({condDia})>0, \"Error: Día excede el límite del mes/año.\", \"\"))))";
-
-                    rangoAlertaDefinido.FormulaLocal = ExcelHelper.TraducirFormulaLocal(wsActual, formulaAlertaEng, rangoAlertaDefinido.Row);
                 }
                 finally
                 {
@@ -258,22 +290,109 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
+                // FASE 4.5: SUB-FLUJO DESACOPLADO (ALERTA GLOBAL UNIFICADA)
+                // =========================================================================
+                excelApp.ScreenUpdating = true; // Mostramos visualmente el avance
+                DialogResult respMensaje = MessageBox.Show(
+                    "¿Deseas agregar un MENSAJE DE TEXTO unificado vinculado a las banderas generadas?\n\n(Verificará todo el rango de banderas y si hay algún 1, mostrará 'Inconsistencia en fecha').",
+                    "SAVCNG - Mensaje Descriptivo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (respMensaje == DialogResult.Yes)
+                {
+                    Excel.Range rangoBanderasSelect = null;
+                    Excel.Range rangoMensajesSelect = null;
+                    try
+                    {
+                        rangoBanderasSelect = (Excel.Range)excelApp.InputBox(
+                            "Selecciona el RANGO COMPLETO que contiene los 0 y 1 (Origen de la evaluación):",
+                            "SAVCNG - Origen", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+
+                        rangoMensajesSelect = (Excel.Range)excelApp.InputBox(
+                            "Selecciona el RANGO donde se inyectará el MENSAJE DE TEXTO UNIFICADO (Destino):",
+                            "SAVCNG - Destino", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+
+                        excelApp.ScreenUpdating = false;
+
+                        Excel.Range celdaExtBase = null;
+                        Excel.Range mergeExt = null;
+                        Excel.Range topLeftExt = null;
+                        string formViejaM = "";
+
+                        try
+                        {
+                            // 1. Extracción Segura usando el Ancla de celda combinada (MergeArea)
+                            celdaExtBase = (Excel.Range)rangoMensajesSelect.Cells[1, 1];
+                            mergeExt = celdaExtBase.MergeArea;
+                            topLeftExt = (Excel.Range)mergeExt.Cells[1, 1];
+
+                            if (topLeftExt.HasFormula != null && (bool)topLeftExt.HasFormula)
+                            {
+                                string fv = topLeftExt.Formula.ToString();
+                                if (fv.StartsWith("=")) formViejaM = fv.Substring(1);
+                            }
+                            else
+                            {
+                                string tOld = topLeftExt.Value2?.ToString() ?? "";
+                                if (!string.IsNullOrEmpty(tOld)) formViejaM = "\"" + tOld.Replace("\"", "\"\"") + "\"";
+                            }
+
+                            // 2. Preparamos el Lienzo Gigante
+                            rangoMensajesSelect.Merge();
+                            rangoMensajesSelect.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
+                            rangoMensajesSelect.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
+                            rangoMensajesSelect.WrapText = true;
+                            rangoMensajesSelect.Font.Color = 255;
+                            rangoMensajesSelect.Font.Bold = true;
+
+                            // 3. Obtenemos dirección absoluta del rango de banderas y creamos la lógica
+                            string dirBanderas = rangoBanderasSelect.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
+                            string logicaMsjEng = $"IF(SUM({dirBanderas})>0, \"Inconsistencia en fecha\", \"\")";
+                            string formMsjEng = "";
+
+                            // 4. Apilamiento Seguro
+                            if (!string.IsNullOrEmpty(formViejaM) && !limpiarFormatos)
+                            {
+                                formMsjEng = $"={formViejaM} & IF({logicaMsjEng}=\"\", \"\", CHAR(10) & {logicaMsjEng})";
+                            }
+                            else
+                            {
+                                formMsjEng = $"={logicaMsjEng}";
+                            }
+
+                            rangoMensajesSelect.FormulaLocal = ExcelHelper.TraducirFormulaLocal(wsActual, formMsjEng, rangoMensajesSelect.Row);
+                        }
+                        finally
+                        {
+                            ExcelHelper.LiberarCom(topLeftExt); ExcelHelper.LiberarCom(mergeExt); ExcelHelper.LiberarCom(celdaExtBase);
+                        }
+                    }
+                    catch
+                    {
+                        // Flujo cancelado por usuario de manera segura
+                    }
+                    finally
+                    {
+                        ExcelHelper.LiberarCom(rangoMensajesSelect); ExcelHelper.LiberarCom(rangoBanderasSelect);
+                    }
+                }
+
+                // =========================================================================
                 // FASE 5: REGISTRO DE AUDITORÍA Y RETORNO (DTO)
                 // =========================================================================
-                string estadoAuditoria = limpiarFormatos ? "Lienzo limpio" : "Formatos apilados";
+                string estadoAuditoria = limpiarFormatos ? "Lienzo limpio" : "Formatos y banderas apiladas";
 
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso,
                     preguntasDetectadas,
-                    "Validación Fechas",
+                    "Validación Fechas (Bandera Auxiliar)",
                     rangoCapturado.Address.Replace("$", ""),
-                    $"Data Validation + SUMPRODUCT ({estadoAuditoria})"
+                    $"Data Validation + Columna Auxiliar ({estadoAuditoria})" //[cite: 2]
                 );
 
-                return new ResultadoValidacion
+                return new ResultadoValidacion //[cite: 4]
                 {
                     Exito = true,
-                    Mensaje = $"Blindaje de fechas aplicado con éxito.\n\n• Alerta unificada activa.\n• Se inyectó la regla de contención de NS atípicos.\n• {estadoAuditoria}.",
+                    Mensaje = $"Blindaje de fechas aplicado con éxito.\n\n• Evaluación binaria (1 o 0) fila por fila inyectada.\n• {estadoAuditoria}.",
                     AlertaInyectada = true
                 };
             }
@@ -283,7 +402,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
             }
             finally
             {
-                ExcelHelper.LiberarCom(wsActual);
+                ExcelHelper.LiberarCom(wsActual); //[cite: 3]
                 if (excelApp != null) excelApp.ScreenUpdating = true;
             }
         }
