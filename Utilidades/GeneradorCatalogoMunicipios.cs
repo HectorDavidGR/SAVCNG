@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core;
+using SAVCNG_ExcelDNA.Core; // Consumo obligatorio de la Fachada y el DTO[cite: 3, 4]
 
 namespace SAVCNG_ExcelDNA.Utilidades
 {
@@ -36,8 +36,7 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 // =====================================================================
                 // FASE 1: UX - RECOPILACIÓN DE CELDAS DE TRABAJO (HACER ESTO PRIMERO)
                 // =====================================================================
-                // Forzamos al usuario a trabajar sobre la primera hoja
-                wsActiva = (Excel.Worksheet)libroCenso.Worksheets[1];
+                wsActiva = (Excel.Worksheet)libroCenso.Worksheets[2];
                 wsActiva.Activate();
 
                 object resEntidad = excelApp.InputBox("1. Selecciona la CELDA donde irá la LISTA DESPLEGABLE DE ENTIDAD:", "SAVCNG - Entidad", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
@@ -48,7 +47,6 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 if (resCveEnt is bool && (bool)resCveEnt == false) return new ResultadoValidacion { Exito = false, Mensaje = "Configuración cancelada.", AlertaInyectada = false };
                 celdaClaveEntidad = (Excel.Range)resCveEnt;
 
-                // --- NUEVAS VARIABLES DE DECISIÓN (INTERRUPTORES) ---
                 bool requiereMunicipio = false;
                 bool incluirOtroMunicipio = false;
                 bool incluirNoIdentificado = false;
@@ -67,16 +65,15 @@ namespace SAVCNG_ExcelDNA.Utilidades
                     if (resCveMun is bool && (bool)resCveMun == false) return new ResultadoValidacion { Exito = false, Mensaje = "Configuración cancelada.", AlertaInyectada = false };
                     celdaClaveMunicipio = (Excel.Range)resCveMun;
 
-                    // --- NUEVO: PREGUNTAS DE COMBINACIÓN LÓGICA ---
-                    DialogResult respOtro = MessageBox.Show("¿Deseas incluir la opción 'Otro municipio o demarcación territorial' (Clave 098) en el catálogo?", "Opciones Adicionales", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    DialogResult respOtro = MessageBox.Show("¿Deseas incluir la opción 'Otro municipio o demarcación territorial' en el catálogo?", "Opciones Adicionales", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     incluirOtroMunicipio = (respOtro == DialogResult.Yes);
 
-                    DialogResult respNoId = MessageBox.Show("¿Deseas incluir la opción 'No identificado' (Clave 099) en el catálogo?", "Opciones Adicionales", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    DialogResult respNoId = MessageBox.Show("¿Deseas incluir la opción 'No identificado' en el catálogo?", "Opciones Adicionales", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     incluirNoIdentificado = (respNoId == DialogResult.Yes);
                 }
 
                 // =====================================================================
-                // FASE 2: LECTURA AISLADA DEL CATÁLOGO EXTERNO (AHORA SÍ, APAGAMOS PANTALLA)
+                // FASE 2: LECTURA AISLADA DEL CATÁLOGO EXTERNO
                 // =====================================================================
                 excelApp.ScreenUpdating = false;
 
@@ -84,10 +81,7 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 wsOrigen = (Excel.Worksheet)libroOrigen.Worksheets[1];
                 rangoUsado = wsOrigen.UsedRange;
 
-                // Volcado masivo a RAM
                 object[,] matrizDatos = (object[,])rangoUsado.Value2;
-
-                // CERRAMOS EL LIBRO EXTERNO INMEDIATAMENTE 
                 libroOrigen.Close(false);
 
                 if (matrizDatos == null || matrizDatos.GetLength(0) < 5)
@@ -96,7 +90,7 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 }
 
                 // =====================================================================
-                // FASE 3: PROCESAMIENTO MÁQUINA DE ESTADOS (Corte de Control)
+                // FASE 3: PROCESAMIENTO MÁQUINA DE ESTADOS (Corte de Control Inteligente)
                 // =====================================================================
                 int totalFilas = matrizDatos.GetLength(0);
                 List<object[]> datosProcesados = new List<object[]>();
@@ -104,12 +98,12 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 List<string> entidadesUnicasNombres = new List<string>();
                 List<string> entidadesUnicasClaves = new List<string>();
 
-                // Inyectar Encabezados (Añadimos Helper Index en Col F para búsquedas exactas)
                 datosProcesados.Add(new object[] { "CVEGEO", "CVE_ENT", "NOM_ENT", "CVE_MUN", "NOM_MUN", "HELPER_INDEX" });
 
                 string cveEntAnterior = "";
-                string cveEntOriAnterior = ""; // NUEVO: Rastreará la clave original (Ej. "01") sin el "2"
+                string cveEntOriAnterior = "";
                 string nomEntAnterior = "";
+                int conteoMunicipiosEntidad = 0; // NUEVO: Rastreador de volumen de municipios
 
                 for (int i = 5; i <= totalFilas; i++)
                 {
@@ -120,10 +114,7 @@ namespace SAVCNG_ExcelDNA.Utilidades
                     string nomEnt = matrizDatos[i, 3]?.ToString().Trim();
                     string nomMun = matrizDatos[i, 6]?.ToString().Trim();
 
-                    // REGLA DE NEGOCIO: Pegar el "2" al inicio de la entidad (ej. "01" -> "201")
                     string cveEnt = string.IsNullOrEmpty(cveEntOri) ? "" : "2" + cveEntOri;
-
-                    // REGLA DE NEGOCIO: La clave del municipio es el CVEGEO completo
                     string cveMun = cveGeo;
 
                     if (!entidadesUnicasClaves.Contains(cveEnt))
@@ -132,43 +123,55 @@ namespace SAVCNG_ExcelDNA.Utilidades
                         entidadesUnicasNombres.Add(nomEnt);
                     }
 
-                    // Corte de estado: Inyectar 098 y 099 CONDICIONADOS
+                    // Corte de estado: Inyectar opciones dinámicas al cambiar de entidad
                     if (cveEnt != cveEntAnterior && !string.IsNullOrEmpty(cveEntAnterior))
                     {
+                        // LÓGICA DINÁMICA: Si tiene 100 o más, usa la serie 990, si no, usa la serie 090
+                        string sufijoOtro = conteoMunicipiosEntidad >= 100 ? "998" : "098";
+                        string sufijoNoId = conteoMunicipiosEntidad >= 100 ? "999" : "099";
+
                         if (incluirOtroMunicipio)
                         {
-                            string cveGeo098 = $"{cveEntOriAnterior}098";
-                            datosProcesados.Add(new object[] { cveGeo098, cveEntAnterior, nomEntAnterior, cveGeo098, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
+                            string cveGeoOtro = $"{cveEntOriAnterior}{sufijoOtro}";
+                            datosProcesados.Add(new object[] { cveGeoOtro, cveEntAnterior, nomEntAnterior, cveGeoOtro, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
                         }
 
                         if (incluirNoIdentificado)
                         {
-                            string cveGeo099 = $"{cveEntOriAnterior}099";
-                            datosProcesados.Add(new object[] { cveGeo099, cveEntAnterior, nomEntAnterior, cveGeo099, "No identificado", $"{nomEntAnterior}|No identificado" });
+                            string cveGeoNoId = $"{cveEntOriAnterior}{sufijoNoId}";
+                            datosProcesados.Add(new object[] { cveGeoNoId, cveEntAnterior, nomEntAnterior, cveGeoNoId, "No identificado", $"{nomEntAnterior}|No identificado" });
                         }
+
+                        // Reiniciamos el contador para la nueva entidad que apenas va a procesarse
+                        conteoMunicipiosEntidad = 0;
                     }
 
                     datosProcesados.Add(new object[] { cveGeo, cveEnt, nomEnt, cveMun, nomMun, $"{nomEnt}|{nomMun}" });
 
-                    // Actualizamos las memorias de rastreo
+                    // Incrementamos el contador por la fila válida que acabamos de agregar
+                    conteoMunicipiosEntidad++;
+
                     cveEntAnterior = cveEnt;
                     cveEntOriAnterior = cveEntOri;
                     nomEntAnterior = nomEnt;
                 }
 
-                // Cierre del ciclo: Inyectar 098 y 099 a la ÚLTIMA entidad CONDICIONADOS
+                // Cierre del ciclo: Inyectar opciones dinámicas a la ÚLTIMA entidad procesada
                 if (!string.IsNullOrEmpty(cveEntAnterior))
                 {
+                    string sufijoOtro = conteoMunicipiosEntidad >= 100 ? "998" : "098";
+                    string sufijoNoId = conteoMunicipiosEntidad >= 100 ? "999" : "099";
+
                     if (incluirOtroMunicipio)
                     {
-                        string cveGeo098 = $"{cveEntOriAnterior}098";
-                        datosProcesados.Add(new object[] { cveGeo098, cveEntAnterior, nomEntAnterior, cveGeo098, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
+                        string cveGeoOtro = $"{cveEntOriAnterior}{sufijoOtro}";
+                        datosProcesados.Add(new object[] { cveGeoOtro, cveEntAnterior, nomEntAnterior, cveGeoOtro, "Otro municipio o demarcación territorial", $"{nomEntAnterior}|Otro municipio o demarcación territorial" });
                     }
 
                     if (incluirNoIdentificado)
                     {
-                        string cveGeo099 = $"{cveEntOriAnterior}099";
-                        datosProcesados.Add(new object[] { cveGeo099, cveEntAnterior, nomEntAnterior, cveGeo099, "No identificado", $"{nomEntAnterior}|No identificado" });
+                        string cveGeoNoId = $"{cveEntOriAnterior}{sufijoNoId}";
+                        datosProcesados.Add(new object[] { cveGeoNoId, cveEntAnterior, nomEntAnterior, cveGeoNoId, "No identificado", $"{nomEntAnterior}|No identificado" });
                     }
                 }
 
@@ -210,14 +213,12 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 wsNuevo = (Excel.Worksheet)libroCenso.Worksheets.Add(After: libroCenso.Worksheets[libroCenso.Worksheets.Count]);
                 wsNuevo.Name = nombreHojaCatalogo;
 
-                // Inyección Tabla Principal (A-F)
                 celdaInicio = (Excel.Range)wsNuevo.Cells[1, 1];
                 celdaFin = (Excel.Range)wsNuevo.Cells[filasSalida, 6];
                 rangoDestino = wsNuevo.Range[celdaInicio, celdaFin];
                 rangoDestino.NumberFormat = "@";
                 rangoDestino.Value2 = matrizSalida;
 
-                // Inyección Tabla Únicos (H-I)
                 celdaInicioUniq = (Excel.Range)wsNuevo.Cells[1, 8];
                 celdaFinUniq = (Excel.Range)wsNuevo.Cells[totalUnicas + 1, 9];
                 rangoUniq = wsNuevo.Range[celdaInicioUniq, celdaFinUniq];
@@ -226,13 +227,11 @@ namespace SAVCNG_ExcelDNA.Utilidades
 
                 columnasDestino = wsNuevo.UsedRange.EntireColumn;
                 columnasDestino.AutoFit();
-                //wsNuevo.Visible = Excel.XlSheetVisibility.xlSheetVeryHidden; // Ocultamiento total
-                wsNuevo.Visible = Excel.XlSheetVisibility.xlSheetVisible; // Ocultamiento total
+                wsNuevo.Visible = Excel.XlSheetVisibility.xlSheetVisible;
 
                 // =====================================================================
                 // FASE 5: INYECCIÓN DE FÓRMULAS UNIVERSALES (BLINDAJE 0x800A03EC)
                 // =====================================================================
-                // 5.1 Nombres de Rango (Eluden el bloqueo de validación cruzada en XP)
                 try { libroCenso.Names.Item("SAVCNG_ColEnt").Delete(); } catch { }
                 try { libroCenso.Names.Item("SAVCNG_ColMun").Delete(); } catch { }
                 try { libroCenso.Names.Item("SAVCNG_ListaUnicas").Delete(); } catch { }
@@ -241,7 +240,6 @@ namespace SAVCNG_ExcelDNA.Utilidades
                 libroCenso.Names.Add("SAVCNG_ColMun", $"='{nombreHojaCatalogo}'!$E:$E");
                 libroCenso.Names.Add("SAVCNG_ListaUnicas", $"='{nombreHojaCatalogo}'!$H$2:$H${totalUnicas + 1}");
 
-                // Extraemos estrictamente la PRIMERA celda para soportar celdas combinadas
                 Excel.Range tlEnt = null;
                 Excel.Range maEnt = null;
                 Excel.Range maCveEnt = null;
@@ -254,14 +252,12 @@ namespace SAVCNG_ExcelDNA.Utilidades
                     maEnt = celdaEntidad.MergeArea;
                     maCveEnt = celdaClaveEntidad.MergeArea;
 
-                    // 5.2 Dropdown Entidad y Clave (Aplicado al MergeArea completo)
                     maEnt.Validation.Delete();
                     maEnt.Validation.Add(Excel.XlDVType.xlValidateList, Excel.XlDVAlertStyle.xlValidAlertStop, Type.Missing, "=SAVCNG_ListaUnicas", Type.Missing);
                     maEnt.Validation.InCellDropdown = true;
 
                     string formulaClaveEntIngles = $"=IF(ISBLANK({addrEnt}), \"\", VLOOKUP({addrEnt}, '{nombreHojaCatalogo}'!$H:$I, 2, FALSE))";
                     maCveEnt.FormulaLocal = ExcelHelper.TraducirFormulaLocal(wsActiva, formulaClaveEntIngles, celdaClaveEntidad.Row);
-                    //maCveEnt.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.LightGray);
                 }
                 finally
                 {
@@ -284,7 +280,6 @@ namespace SAVCNG_ExcelDNA.Utilidades
                         maMun = celdaMunicipio.MergeArea;
                         maCveMun = celdaClaveMunicipio.MergeArea;
 
-                        // 5.3 Dropdown Municipio Dependiente (Salvavidas IF para evitar 0x800A03EC)
                         maMun.Validation.Delete();
                         string formulaValMunIngles = $"=OFFSET(SAVCNG_ColMun, MATCH(IF(ISBLANK({addrEnt}), \"NOM_ENT\", {addrEnt}), SAVCNG_ColEnt, 0)-1, 0, MAX(1, COUNTIF(SAVCNG_ColEnt, {addrEnt})), 1)";
                         string valMunLocal = ExcelHelper.TraducirFormulaLocal(wsActiva, formulaValMunIngles, celdaMunicipio.Row);
@@ -292,10 +287,8 @@ namespace SAVCNG_ExcelDNA.Utilidades
                         maMun.Validation.Add(Excel.XlDVType.xlValidateList, Excel.XlDVAlertStyle.xlValidAlertStop, Type.Missing, valMunLocal, Type.Missing);
                         maMun.Validation.InCellDropdown = true;
 
-                        // 5.4 Clave Municipio
                         string formClaveMunIngles = $"=IF(OR(ISBLANK({addrEnt}), ISBLANK({addrMun})), \"\", INDEX('{nombreHojaCatalogo}'!$D:$D, MATCH({addrEnt}&\"|\"&{addrMun}, '{nombreHojaCatalogo}'!$F:$F, 0)))";
                         maCveMun.FormulaLocal = ExcelHelper.TraducirFormulaLocal(wsActiva, formClaveMunIngles, celdaClaveMunicipio.Row);
-                        //maCveMun.Interior.Color = System.Drawing.ColorTranslator.ToOle(System.Drawing.Color.LightGray);
                     }
                     finally
                     {
@@ -305,17 +298,17 @@ namespace SAVCNG_ExcelDNA.Utilidades
                     }
                 }
 
-                wsActiva.Activate(); // Devolvemos el foco al usuario
+                wsActiva.Activate();
 
                 // =====================================================================
                 // FASE 6: AUDITORÍA Y DTO
                 // =====================================================================
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso, "N/A", "Inyección de Catálogos Geográficos (XP Compatible)",
-                    celdaEntidad.Address.Replace("$", ""), "Data Validation (OFFSET) + Helper Columns"
+                    celdaEntidad.Address.Replace("$", ""), "Data Validation (OFFSET) + Helper Columns" //[cite: 2]
                 );
 
-                return new ResultadoValidacion
+                return new ResultadoValidacion //[cite: 4]
                 {
                     Exito = true,
                     Mensaje = $"Catálogo inyectado y automatizado con éxito.\n\nSe blindó la compatibilidad con versiones anteriores de Excel y se automatizaron las claves.",
@@ -328,7 +321,6 @@ namespace SAVCNG_ExcelDNA.Utilidades
             }
             finally
             {
-                // DESTRUCCIÓN ESTRICTA DE MEMORIA (POLÍTICA ZERO LEAKS)
                 ExcelHelper.LiberarCom(celdaEntidad);
                 ExcelHelper.LiberarCom(celdaClaveEntidad);
                 ExcelHelper.LiberarCom(celdaMunicipio);
