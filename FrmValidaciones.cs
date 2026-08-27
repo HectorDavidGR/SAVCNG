@@ -466,5 +466,67 @@ namespace SAVCNG_ExcelDNA
             SAVCNG_ExcelDNA.Utilidades.IOperacionLibro servicioLimpieza = new SAVCNG_ExcelDNA.Utilidades.LimpiarColoresService();
             servicioLimpieza.Ejecutar(excelApp, _libroCenso);
         }
+
+        private void btnCatalogoMunicipios_Click(object sender, EventArgs e)
+        {
+            Excel.Application excelApp = (Excel.Application)ExcelDna.Integration.ExcelDnaUtil.Application;
+
+            try
+            {
+                if (_libroCenso == null)
+                {
+                    MessageBox.Show(this, "No hay ningún censo cargado en memoria para procesar.", "Operación Denegada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // =====================================================================
+                // 1. RECOPILACIÓN DE INPUTS (OpenFileDialog)
+                // =====================================================================
+                string rutaArchivoCatalogo = "";
+                using (OpenFileDialog ofd = new OpenFileDialog())
+                {
+                    ofd.Title = "SAVCNG - Selecciona el Catálogo de INEGI a procesar";
+                    ofd.Filter = "Archivos de Excel|*.xlsx;*.xls|Todos los archivos|*.*";
+                    ofd.Multiselect = false;
+
+                    // Si el usuario cancela la selección, abortamos silenciosamente
+                    if (ofd.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+                    rutaArchivoCatalogo = ofd.FileName;
+                }
+
+                // UX: Mostramos el cursor de carga
+                Cursor.Current = Cursors.WaitCursor;
+
+                // =====================================================================
+                // 2. ENRUTAMIENTO AL SERVICIO (Inyección de la ruta)
+                // =====================================================================
+                SAVCNG_ExcelDNA.Utilidades.GeneradorCatalogoMunicipios generador = new SAVCNG_ExcelDNA.Utilidades.GeneradorCatalogoMunicipios();
+
+                // Atrapamos el DTO
+                ResultadoValidacion resultado = generador.Ejecutar(excelApp, _libroCenso, rutaArchivoCatalogo);
+
+                // =====================================================================
+                // 3. RESPUESTA VISUAL BASADA EN EL DTO
+                // =====================================================================
+                if (resultado != null && !string.IsNullOrEmpty(resultado.Mensaje))
+                {
+                    MessageBoxIcon icono = resultado.Exito ? MessageBoxIcon.Information : MessageBoxIcon.Error;
+                    string titulo = resultado.Exito ? "SAVCNG - Extracción Exitosa" : "SAVCNG - Error Crítico";
+
+                    MessageBox.Show(this, resultado.Mensaje, titulo, MessageBoxButtons.OK, icono);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Ocurrió un error en el orquestador: " + ex.Message, "Error del Sistema", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor.Current = Cursors.Default;
+            }
+        }
     }
 }
