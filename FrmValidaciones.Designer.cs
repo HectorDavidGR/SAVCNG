@@ -77,6 +77,9 @@ namespace SAVCNG_ExcelDNA
             this.btnLimpiarColores = new System.Windows.Forms.Button();
             this.btnAplicarColores = new System.Windows.Forms.Button();
             this.label10 = new System.Windows.Forms.Label();
+            this.gp_CatalogoEyM = new System.Windows.Forms.GroupBox();
+            this.label11 = new System.Windows.Forms.Label();
+            this.btnCatalogoMunicipios = new System.Windows.Forms.Button();
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
@@ -103,6 +106,7 @@ namespace SAVCNG_ExcelDNA
             this.gbControlBloqueo.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudPeriodo)).BeginInit();
             this.gbMacroColores.SuspendLayout();
+            this.gp_CatalogoEyM.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.tableLayoutPanel2.SuspendLayout();
             this.tableLayoutPanel4.SuspendLayout();
@@ -587,6 +591,7 @@ namespace SAVCNG_ExcelDNA
             this.tLP_RevisionUtilidades.Controls.Add(this.gb_MacroCeldasBloq, 1, 0);
             this.tLP_RevisionUtilidades.Controls.Add(this.gbControlBloqueo, 0, 0);
             this.tLP_RevisionUtilidades.Controls.Add(this.gbMacroColores, 0, 1);
+            this.tLP_RevisionUtilidades.Controls.Add(this.gp_CatalogoEyM, 1, 1);
             this.tLP_RevisionUtilidades.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tLP_RevisionUtilidades.Location = new System.Drawing.Point(3, 2);
             this.tLP_RevisionUtilidades.Name = "tLP_RevisionUtilidades";
@@ -616,7 +621,7 @@ namespace SAVCNG_ExcelDNA
             this.btnLimpiarFormato.BackColor = System.Drawing.Color.Red;
             this.btnLimpiarFormato.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnLimpiarFormato.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnLimpiarFormato.Location = new System.Drawing.Point(170, 73);
+            this.btnLimpiarFormato.Location = new System.Drawing.Point(170, 72);
             this.btnLimpiarFormato.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnLimpiarFormato.Name = "btnLimpiarFormato";
             this.btnLimpiarFormato.Size = new System.Drawing.Size(127, 36);
@@ -631,7 +636,7 @@ namespace SAVCNG_ExcelDNA
             this.label9.AutoSize = true;
             this.label9.Font = new System.Drawing.Font("Segoe UI", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label9.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label9.Location = new System.Drawing.Point(55, 21);
+            this.label9.Location = new System.Drawing.Point(55, 20);
             this.label9.Name = "label9";
             this.label9.Size = new System.Drawing.Size(216, 19);
             this.label9.TabIndex = 2031;
@@ -645,7 +650,7 @@ namespace SAVCNG_ExcelDNA
             this.btnAplicarFormato.BackColor = System.Drawing.SystemColors.Highlight;
             this.btnAplicarFormato.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnAplicarFormato.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnAplicarFormato.Location = new System.Drawing.Point(32, 73);
+            this.btnAplicarFormato.Location = new System.Drawing.Point(32, 72);
             this.btnAplicarFormato.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnAplicarFormato.Name = "btnAplicarFormato";
             this.btnAplicarFormato.Size = new System.Drawing.Size(132, 36);
@@ -674,7 +679,7 @@ namespace SAVCNG_ExcelDNA
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("Segoe UI", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label5.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label5.Location = new System.Drawing.Point(89, 21);
+            this.label5.Location = new System.Drawing.Point(89, 20);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(140, 19);
             this.label5.TabIndex = 2029;
@@ -687,7 +692,7 @@ namespace SAVCNG_ExcelDNA
             this.btnDesbloqueo.BackColor = System.Drawing.Color.Red;
             this.btnDesbloqueo.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnDesbloqueo.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnDesbloqueo.Location = new System.Drawing.Point(214, 73);
+            this.btnDesbloqueo.Location = new System.Drawing.Point(214, 72);
             this.btnDesbloqueo.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnDesbloqueo.Name = "btnDesbloqueo";
             this.btnDesbloqueo.Size = new System.Drawing.Size(104, 36);
@@ -702,7 +707,7 @@ namespace SAVCNG_ExcelDNA
             this.btnBloqueo.BackColor = System.Drawing.SystemColors.Highlight;
             this.btnBloqueo.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnBloqueo.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnBloqueo.Location = new System.Drawing.Point(108, 73);
+            this.btnBloqueo.Location = new System.Drawing.Point(108, 72);
             this.btnBloqueo.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnBloqueo.Name = "btnBloqueo";
             this.btnBloqueo.Size = new System.Drawing.Size(100, 36);
@@ -714,7 +719,7 @@ namespace SAVCNG_ExcelDNA
             // nudPeriodo
             // 
             this.nudPeriodo.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.nudPeriodo.Location = new System.Drawing.Point(22, 85);
+            this.nudPeriodo.Location = new System.Drawing.Point(22, 84);
             this.nudPeriodo.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.nudPeriodo.Maximum = new decimal(new int[] {
             2050,
@@ -739,7 +744,7 @@ namespace SAVCNG_ExcelDNA
             // 
             this.label6.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(19, 66);
+            this.label6.Location = new System.Drawing.Point(19, 65);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(53, 15);
             this.label6.TabIndex = 2030;
@@ -765,7 +770,7 @@ namespace SAVCNG_ExcelDNA
             this.btnLimpiarColores.BackColor = System.Drawing.Color.Red;
             this.btnLimpiarColores.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnLimpiarColores.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnLimpiarColores.Location = new System.Drawing.Point(167, 72);
+            this.btnLimpiarColores.Location = new System.Drawing.Point(167, 71);
             this.btnLimpiarColores.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnLimpiarColores.Name = "btnLimpiarColores";
             this.btnLimpiarColores.Size = new System.Drawing.Size(119, 36);
@@ -781,7 +786,7 @@ namespace SAVCNG_ExcelDNA
             this.btnAplicarColores.BackColor = System.Drawing.SystemColors.Highlight;
             this.btnAplicarColores.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnAplicarColores.ForeColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnAplicarColores.Location = new System.Drawing.Point(37, 72);
+            this.btnAplicarColores.Location = new System.Drawing.Point(37, 71);
             this.btnAplicarColores.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnAplicarColores.Name = "btnAplicarColores";
             this.btnAplicarColores.Size = new System.Drawing.Size(124, 36);
@@ -796,12 +801,53 @@ namespace SAVCNG_ExcelDNA
             this.label10.AutoSize = true;
             this.label10.Font = new System.Drawing.Font("Segoe UI", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label10.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label10.Location = new System.Drawing.Point(53, 21);
+            this.label10.Location = new System.Drawing.Point(53, 20);
             this.label10.Name = "label10";
             this.label10.Size = new System.Drawing.Size(216, 19);
             this.label10.TabIndex = 2033;
             this.label10.Text = "Colorimetría para Validaciones";
             this.label10.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // gp_CatalogoEyM
+            // 
+            this.gp_CatalogoEyM.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.gp_CatalogoEyM.Controls.Add(this.label11);
+            this.gp_CatalogoEyM.Controls.Add(this.btnCatalogoMunicipios);
+            this.gp_CatalogoEyM.Location = new System.Drawing.Point(335, 150);
+            this.gp_CatalogoEyM.Name = "gp_CatalogoEyM";
+            this.gp_CatalogoEyM.Size = new System.Drawing.Size(326, 141);
+            this.gp_CatalogoEyM.TabIndex = 2036;
+            this.gp_CatalogoEyM.TabStop = false;
+            // 
+            // label11
+            // 
+            this.label11.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.label11.AutoSize = true;
+            this.label11.Font = new System.Drawing.Font("Segoe UI", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label11.ForeColor = System.Drawing.SystemColors.Highlight;
+            this.label11.Location = new System.Drawing.Point(106, 20);
+            this.label11.Name = "label11";
+            this.label11.Size = new System.Drawing.Size(123, 19);
+            this.label11.TabIndex = 2034;
+            this.label11.Text = "Catalogó de EyM";
+            this.label11.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // btnCatalogoMunicipios
+            // 
+            this.btnCatalogoMunicipios.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.btnCatalogoMunicipios.BackColor = System.Drawing.SystemColors.Highlight;
+            this.btnCatalogoMunicipios.Enabled = false;
+            this.btnCatalogoMunicipios.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnCatalogoMunicipios.ForeColor = System.Drawing.SystemColors.ButtonFace;
+            this.btnCatalogoMunicipios.Location = new System.Drawing.Point(93, 68);
+            this.btnCatalogoMunicipios.Name = "btnCatalogoMunicipios";
+            this.btnCatalogoMunicipios.Size = new System.Drawing.Size(150, 45);
+            this.btnCatalogoMunicipios.TabIndex = 2035;
+            this.btnCatalogoMunicipios.Text = "Catálogo EyM";
+            this.btnCatalogoMunicipios.UseVisualStyleBackColor = false;
+            this.btnCatalogoMunicipios.Click += new System.EventHandler(this.btnCatalogoMunicipios_Click);
             // 
             // tabPage3
             // 
@@ -957,6 +1003,8 @@ namespace SAVCNG_ExcelDNA
             ((System.ComponentModel.ISupportInitialize)(this.nudPeriodo)).EndInit();
             this.gbMacroColores.ResumeLayout(false);
             this.gbMacroColores.PerformLayout();
+            this.gp_CatalogoEyM.ResumeLayout(false);
+            this.gp_CatalogoEyM.PerformLayout();
             this.tabPage3.ResumeLayout(false);
             this.tableLayoutPanel2.ResumeLayout(false);
             this.tableLayoutPanel4.ResumeLayout(false);
@@ -1028,5 +1076,8 @@ namespace SAVCNG_ExcelDNA
         private System.Windows.Forms.Button btnAplicarColores;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.CheckBox chkCoordenadas;
+        private System.Windows.Forms.Button btnCatalogoMunicipios;
+        private System.Windows.Forms.GroupBox gp_CatalogoEyM;
+        private System.Windows.Forms.Label label11;
     }
 }
