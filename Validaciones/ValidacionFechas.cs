@@ -47,7 +47,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
                 catch
                 {
-                    return new ResultadoValidacion { Exito = false, Mensaje = "El rango seleccionado debe contener exactamente 3 variables contiguas (Día, Mes, Año), incluso si están formadas por celdas combinadas.", AlertaInyectada = false };
+                    return new ResultadoValidacion { Exito = false, Mensaje = "El rango seleccionado debe contener exactamente 3 campos continuos (Día, Mes, Año), incluso si están formadas por celdas combinadas.", AlertaInyectada = false };
                 }
                 finally
                 {
@@ -73,12 +73,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 try
                 {
                     rangoAlertaDefinido = (Excel.Range)excelApp.InputBox(
-                        "Selecciona la celda INICIAL de la columna auxiliar donde se inyectará la bandera:\n\n(1 = Error, 0 = Correcto).",
-                        "SAVCNG - Columna Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
+                        "Selecciona la celda INICIAL (columna AF en adelante) donde se insertara la formula auxiliar:\n\n(1 = Error, 0 = Correcto).",
+                        "SAVCNG - Formula Auxiliar", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
                 }
                 catch
                 {
-                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de bandera cancelada.", AlertaInyectada = false };
+                    return new ResultadoValidacion { Exito = false, Mensaje = "Selección de formula auxiliar cancelada.", AlertaInyectada = false };
                 }
 
                 // =========================================================================
@@ -116,12 +116,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 if (tieneValidacionPrevia || tieneFormatosPrevios || tieneAlertaPrevia)
                 {
                     DialogResult resp = MessageBox.Show(
-                        "Se detectaron reglas de captura, colores O FÓRMULAS PREVIAS en los rangos seleccionados.\n\n" +
-                        "NOTA: Las reglas de validación estricta se sobreescribirán obligatoriamente.\n\n" +
-                        "¿Deseas MANTENER los colores y las FÓRMULAS aplicadas previamente para que se apilen matemáticamente?\n\n" +
-                        "SÍ = Acumulará los errores (1) sobre la evaluación existente.\n" +
-                        "NO = Borrar todo el historial visual, limpiar las celdas e inyectar desde cero.",
-                        "SAVCNG - Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                         "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
+                        "NOTA: Al ser una restricción de captura estricta, la regla se sobreescribirá, pero...\n\n" +
+                        "¿Deseas CONSERVAR las formulas, alertas o bloqueos (Formatos Condicionales) aplicados previamente?\n\n" +
+                        "SÍ = CONSERVAR todo.\n" +
+                        "NO = BORRAR todo el historial y limpiar las celdas.",
+                        "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
 
                     if (resp == DialogResult.Cancel)
                         return new ResultadoValidacion { Exito = false, Mensaje = "Proceso cancelado por el usuario.", AlertaInyectada = false };
@@ -294,7 +294,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 excelApp.ScreenUpdating = true; // Mostramos visualmente el avance
                 DialogResult respMensaje = MessageBox.Show(
-                    "¿Deseas agregar un MENSAJE DE TEXTO unificado vinculado a las banderas generadas?\n\n(Verificará todo el rango de banderas y si hay algún 1, mostrará 'Inconsistencia en fecha').",
+                    "¿Deseas agregar un MENSAJE DE TEXTO ligado a la(s) formula(s) auxiliar(es) ingresada(s)?\n\n(Debera seleccionar el rango de la(s) formula(s) axuliar(es)).",
                     "SAVCNG - Mensaje Descriptivo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
                 if (respMensaje == DialogResult.Yes)
@@ -304,11 +304,11 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     try
                     {
                         rangoBanderasSelect = (Excel.Range)excelApp.InputBox(
-                            "Selecciona el RANGO COMPLETO que contiene los 0 y 1 (Origen de la evaluación):",
+                            "Selecciona el RANGO COMPLETO de la(s) formula(s) axuliar(es) ingresada(s) previamente:",
                             "SAVCNG - Origen", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
 
                         rangoMensajesSelect = (Excel.Range)excelApp.InputBox(
-                            "Selecciona el RANGO donde se inyectará el MENSAJE DE TEXTO UNIFICADO (Destino):",
+                            "Selecciona el RANGO donde se insertará el MENSAJE DE ERROR:",
                             "SAVCNG - Destino", Type.Missing, Type.Missing, Type.Missing, Type.Missing, Type.Missing, 8);
 
                         excelApp.ScreenUpdating = false;
@@ -346,7 +346,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                             // 3. Obtenemos dirección absoluta del rango de banderas y creamos la lógica
                             string dirBanderas = rangoBanderasSelect.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
-                            string logicaMsjEng = $"IF(SUM({dirBanderas})>0, \"Inconsistencia en fecha\", \"\")";
+                            string logicaMsjEng = $"IF(SUM({dirBanderas})>0, \"Inconsistencia en fecha(s)\", \"\")";
                             string formMsjEng = "";
 
                             // 4. Apilamiento Seguro
@@ -379,12 +379,12 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 // FASE 5: REGISTRO DE AUDITORÍA Y RETORNO (DTO)
                 // =========================================================================
-                string estadoAuditoria = limpiarFormatos ? "Lienzo limpio" : "Formatos y banderas apiladas";
+                string estadoAuditoria = limpiarFormatos ? " " : "• Se conservaron formulas, formatos y bloqueos.";
 
                 AuditoriaCenso.RegistrarAccion(
                     libroCenso,
                     preguntasDetectadas,
-                    "Validación Fechas (Bandera Auxiliar)",
+                    "Validación Fechas (Formula Auxiliar)",
                     rangoCapturado.Address.Replace("$", ""),
                     $"Data Validation + Columna Auxiliar ({estadoAuditoria})" //[cite: 2]
                 );
@@ -392,7 +392,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 return new ResultadoValidacion //[cite: 4]
                 {
                     Exito = true,
-                    Mensaje = $"Blindaje de fechas aplicado con éxito.\n\n• Evaluación binaria (1 o 0) fila por fila inyectada.\n• {estadoAuditoria}.",
+                    Mensaje = $"Validación de fechas aplicada con éxito.\n\n• Evaluación binaria (1 o 0) fila por fila insertada.\n{estadoAuditoria}",
                     AlertaInyectada = true
                 };
             }
