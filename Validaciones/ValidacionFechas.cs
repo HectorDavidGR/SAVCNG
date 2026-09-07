@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 using Excel = Microsoft.Office.Interop.Excel;
-using SAVCNG_ExcelDNA.Core; // Consumo obligatorio de la Fachada y el DTO[cite: 3, 4]
+using SAVCNG_ExcelDNA.Core; // Consumo obligatorio de la Fachada y el DTO
 
 namespace SAVCNG_ExcelDNA.Validaciones
 {
@@ -82,7 +82,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 }
 
                 // =========================================================================
-                // FASE 3: AUDITORÍA DE COEXISTENCIA AVANZADA (ZERO LEAKS)
+                // FASE 3: AUDITORÍA DE COEXISTENCIA AVANZADA (ZERO LEAKS Y TOPMOST)
                 // =========================================================================
                 bool tieneValidacionPrevia = false;
                 bool tieneFormatosPrevios = false;
@@ -115,13 +115,19 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                 if (tieneValidacionPrevia || tieneFormatosPrevios || tieneAlertaPrevia)
                 {
-                    DialogResult resp = MessageBox.Show(
-                         "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
-                        "NOTA: Al ser una restricción de captura estricta, la regla se sobreescribirá, pero...\n\n" +
-                        "¿Deseas CONSERVAR las formulas, alertas o bloqueos (Formatos Condicionales) aplicados previamente?\n\n" +
-                        "SÍ = CONSERVAR todo.\n" +
-                        "NO = BORRAR todo el historial y limpiar las celdas.",
-                        "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                    DialogResult resp;
+
+                    // SOLUCIÓN UX: Instancia efímera TopMost para anclar el MessageBox al frente
+                    using (Form frmTop = new Form { TopMost = true })
+                    {
+                        resp = MessageBox.Show(frmTop,
+                             "Se detectaron configuraciones previas en el rango seleccionado.\n\n" +
+                            "NOTA: Al ser una restricción de captura estricta, la regla se sobreescribirá, pero...\n\n" +
+                            "¿Deseas CONSERVAR las formulas, alertas o bloqueos (Formatos Condicionales) aplicados previamente?\n\n" +
+                            "SÍ = CONSERVAR todo.\n" +
+                            "NO = BORRAR todo el historial y limpiar las celdas.",
+                            "SAVCNG - Auditoría de Coexistencia", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                    }
 
                     if (resp == DialogResult.Cancel)
                         return new ResultadoValidacion { Exito = false, Mensaje = "Proceso cancelado por el usuario.", AlertaInyectada = false };
@@ -149,7 +155,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 excelApp.ScreenUpdating = false;
 
                 // =========================================================================
-                // FASE 4: INYECCIÓN MATRICIAL (EVALUACIÓN POR FILA EN COLUMNA AUXILIAR)
+                // FASE 4: INSERCIÓN MATRICIAL (EVALUACIÓN POR FILA EN COLUMNA AUXILIAR)
                 // =========================================================================
                 try
                 {
@@ -292,10 +298,16 @@ namespace SAVCNG_ExcelDNA.Validaciones
                 // =========================================================================
                 // FASE 4.5: SUB-FLUJO DESACOPLADO (ALERTA GLOBAL UNIFICADA)
                 // =========================================================================
-                excelApp.ScreenUpdating = true; // Mostramos visualmente el avance
-                DialogResult respMensaje = MessageBox.Show(
-                    "¿Deseas agregar un MENSAJE DE TEXTO ligado a la(s) formula(s) auxiliar(es) ingresada(s)?\n\n(Debera seleccionar el rango de la(s) formula(s) axuliar(es)).",
-                    "SAVCNG - Mensaje Descriptivo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                excelApp.ScreenUpdating = true;
+                DialogResult respMensaje;
+
+                // SOLUCIÓN UX: Instancia efímera TopMost para garantizar visibilidad absoluta
+                using (Form frmTopMsj = new Form { TopMost = true })
+                {
+                    respMensaje = MessageBox.Show(frmTopMsj,
+                        "¿Deseas agregar un MENSAJE DE TEXTO ligado a la(s) formula(s) auxiliar(es) ingresada(s)?\n\n(Debera seleccionar el rango de la(s) formula(s) axuliar(es)).",
+                        "SAVCNG - Mensaje Descriptivo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                }
 
                 if (respMensaje == DialogResult.Yes)
                 {
@@ -320,7 +332,6 @@ namespace SAVCNG_ExcelDNA.Validaciones
 
                         try
                         {
-                            // 1. Extracción Segura usando el Ancla de celda combinada (MergeArea)
                             celdaExtBase = (Excel.Range)rangoMensajesSelect.Cells[1, 1];
                             mergeExt = celdaExtBase.MergeArea;
                             topLeftExt = (Excel.Range)mergeExt.Cells[1, 1];
@@ -336,7 +347,6 @@ namespace SAVCNG_ExcelDNA.Validaciones
                                 if (!string.IsNullOrEmpty(tOld)) formViejaM = "\"" + tOld.Replace("\"", "\"\"") + "\"";
                             }
 
-                            // 2. Preparamos el Lienzo Gigante
                             rangoMensajesSelect.Merge();
                             rangoMensajesSelect.HorizontalAlignment = Excel.XlHAlign.xlHAlignCenter;
                             rangoMensajesSelect.VerticalAlignment = Excel.XlVAlign.xlVAlignCenter;
@@ -344,12 +354,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                             rangoMensajesSelect.Font.Color = 255;
                             rangoMensajesSelect.Font.Bold = true;
 
-                            // 3. Obtenemos dirección absoluta del rango de banderas y creamos la lógica
                             string dirBanderas = rangoBanderasSelect.get_Address(true, true, Excel.XlReferenceStyle.xlA1, false);
                             string logicaMsjEng = $"IF(SUM({dirBanderas})>0, \"Inconsistencia en fecha(s)\", \"\")";
                             string formMsjEng = "";
 
-                            // 4. Apilamiento Seguro
                             if (!string.IsNullOrEmpty(formViejaM) && !limpiarFormatos)
                             {
                                 formMsjEng = $"={formViejaM} & IF({logicaMsjEng}=\"\", \"\", CHAR(10) & {logicaMsjEng})";
@@ -386,10 +394,10 @@ namespace SAVCNG_ExcelDNA.Validaciones
                     preguntasDetectadas,
                     "Validación Fechas (Formula Auxiliar)",
                     rangoCapturado.Address.Replace("$", ""),
-                    $"Data Validation + Columna Auxiliar ({estadoAuditoria})" //[cite: 2]
+                    $"Data Validation + Columna Auxiliar ({estadoAuditoria})"
                 );
 
-                return new ResultadoValidacion //[cite: 4]
+                return new ResultadoValidacion
                 {
                     Exito = true,
                     Mensaje = $"Validación de fechas aplicada con éxito.\n\n• Evaluación binaria (1 o 0) fila por fila insertada.\n{estadoAuditoria}",
@@ -402,7 +410,7 @@ namespace SAVCNG_ExcelDNA.Validaciones
             }
             finally
             {
-                ExcelHelper.LiberarCom(wsActual); //[cite: 3]
+                ExcelHelper.LiberarCom(wsActual);
                 if (excelApp != null) excelApp.ScreenUpdating = true;
             }
         }
