@@ -81,6 +81,7 @@
     <Compile Include="Utilidades\AplicarFormatoBloqueoService.cs" />
     <Compile Include="Utilidades\DescargarBitacoraService.cs" />
     <Compile Include="Utilidades\DesprotegerLibroService.cs" />
+    <Compile Include="Utilidades\GeneradorCatalogoMunicipios.cs" />
     <Compile Include="Utilidades\IOperacionLibro.cs" />
     <Compile Include="Utilidades\LimpiarColoresService.cs" />
     <Compile Include="Utilidades\LimpiarFormatoBloqueoService.cs" />
