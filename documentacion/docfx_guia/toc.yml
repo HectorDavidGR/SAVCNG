@@ -1,0 +1,29 @@
+- name: Inicio
+  href: index.md
+- name: Guía de usuario
+  items:
+    - name: Conoce las pestañas
+      href: guia/interfaz.md
+    - name: Validaciones
+      href: guia/validaciones/index.md
+      items:
+        - name: Catálogos
+          href: guia/validaciones/catalogos.md
+        - name: Enteros y decimales
+          href: guia/validaciones/enteros-decimales.md
+        - name: Formato de texto
+          href: guia/validaciones/formato-texto.md
+        - name: NS (No sabe)
+          href: guia/validaciones/ns.md
+        - name: Fechas
+          href: guia/validaciones/fechas.md
+        - name: Coordenadas geográficas
+          href: guia/validaciones/coordenadas.md
+        - name: Bloqueo dinámico
+          href: guia/validaciones/bloqueo.md
+        - name: Campos vacíos
+          href: guia/validaciones/blancos.md
+        - name: Especifique
+          href: guia/validaciones/especifique.md
+        - name: Sumas
+          href: guia/validaciones/sumas.md

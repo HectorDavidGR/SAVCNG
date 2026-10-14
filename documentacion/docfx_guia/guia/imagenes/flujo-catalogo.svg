@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="210" viewBox="0 0 920 210" role="img" aria-labelledby="title desc">
+  <title id="title">Flujo para aplicar un catálogo</title>
+  <desc id="desc">Seleccionar celdas destino, capturar el rango, elegir Catálogos, definir las opciones y comprobar la lista desplegable.</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#526579"/></marker></defs>
+  <rect width="920" height="210" rx="16" fill="#f4f7fb"/>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">
+    <g fill="#fff" stroke="#2463a6" stroke-width="2">
+      <rect x="22" y="62" width="180" height="88" rx="12"/><rect x="250" y="62" width="180" height="88" rx="12"/>
+      <rect x="478" y="62" width="180" height="88" rx="12"/><rect x="706" y="62" width="190" height="88" rx="12"/>
+    </g>
+    <g fill="#19324d" font-size="16" font-weight="600">
+      <text x="112" y="96"><tspan x="112">Selecciona las</tspan><tspan x="112" dy="22">celdas destino</tspan></text>
+      <text x="340" y="96"><tspan x="340">Captura el</tspan><tspan x="340" dy="22">rango en SAVCNG</tspan></text>
+      <text x="568" y="96"><tspan x="568">Elige Catálogos</tspan><tspan x="568" dy="22">y pulsa Aplicar</tspan></text>
+      <text x="801" y="96"><tspan x="801">Define opciones</tspan><tspan x="801" dy="22">y verifica la lista</tspan></text>
+    </g>
+    <g stroke="#526579" stroke-width="3" marker-end="url(#arrow)"><path d="M207 106h32"/><path d="M435 106h32"/><path d="M663 106h32"/></g>
+    <text x="460" y="184" fill="#526579" font-size="13">Si ya existe una regla de validación, SAVCNG pedirá confirmar antes de reemplazarla.</text>
+  </g>
+</svg>
