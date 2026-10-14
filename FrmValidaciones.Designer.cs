@@ -474,10 +474,9 @@ namespace SAVCNG_ExcelDNA
             // chkBlancos
             // 
             this.chkBlancos.Appearance = System.Windows.Forms.Appearance.Button;
-            this.chkBlancos.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(224)))), ((int)(((byte)(192)))));
+            this.chkBlancos.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(189)))), ((int)(((byte)(215)))), ((int)(((byte)(238)))));
             this.chkBlancos.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.chkBlancos.Enabled = false;
-            this.chkBlancos.Location = new System.Drawing.Point(331, 70);
+            this.chkBlancos.Location = new System.Drawing.Point(222, 70);
             this.chkBlancos.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.chkBlancos.Name = "chkBlancos";
             this.chkBlancos.Size = new System.Drawing.Size(101, 55);
