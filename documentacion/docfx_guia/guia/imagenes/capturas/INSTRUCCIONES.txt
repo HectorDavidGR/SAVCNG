@@ -1,0 +1,5 @@
+Coloca aquí las capturas PNG, JPG, SVG, GIF o WEBP. No necesitas editar las fichas Markdown: cuando agregues imágenes, avísame y las integraré en la guía.
+
+Carpetas validación-* corresponden a cada ficha. Usa generales para la interfaz de SAVCNG y cambios visuales que apliquen a varias validaciones.
+
+Nombres sugeridos: 01-seleccion-rango.png, 02-configuracion.png, 03-resultado.png. Antes de guardar una captura, oculta datos personales o información que no deba compartirse.
