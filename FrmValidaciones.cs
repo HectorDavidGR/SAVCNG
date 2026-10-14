@@ -103,7 +103,10 @@ namespace SAVCNG_ExcelDNA
 
             toolTipValidaciones.SetToolTip(this.chkSumas,
                 "Valida que la suma de los desagregados coincida con el Total reportado (considera 'NS').Adicional permite agregar la fila de totales (Σ) al finalizar. (v1 Sin subtotales)");
-            
+
+            toolTipValidaciones.SetToolTip(this.chkComplemento,
+                "Agrupa las validaciones de Horarios, Correo electrónico y Teléfono.\nAl presionar Aplicar Validación, se abrirá una ventana para seleccionar el tipo de validación que deseas ejecutar.");
+
         }
 
         // Evento para seleccionar exclusivamente 1 checkbox a la vez
@@ -240,6 +243,47 @@ namespace SAVCNG_ExcelDNA
                 else if (chkFechas.Checked) { estrategia = new ValidacionFechas(); chkActivo = chkFechas; }
                 else if (chkSumas.Checked) { estrategia = new ValidacionSumas(); chkActivo = chkSumas; }
                 else if (chkCoordenadas.Checked) { estrategia = new ValidacionCoordenadasGeograficas(); chkActivo = chkCoordenadas; }
+
+                else if (chkComplemento.Checked)
+                {
+                    // Abrimos la ventana para seleccionar
+                    // qué validación se desea aplicar.
+                    using (FrmSeleccionValidacionContacto selector =
+                        new FrmSeleccionValidacionContacto())
+                    {
+                        // Si el usuario cancela, no ejecutamos nada.
+                        if (selector.ShowDialog(this) != DialogResult.OK)
+                        {
+                            chkComplemento.Checked = false;
+                            return;
+                        }
+
+                        // Enrutamos hacia la clase correspondiente.
+                        switch (selector.TipoSeleccionado)
+                        {
+                            case TipoValidacionContacto.Horarios:
+                                estrategia = new ValidacionHorario();
+                                break;
+
+                            case TipoValidacionContacto.CorreoElectronico:
+                                estrategia = new ValidacionCorreoElectronico();
+                                break;
+
+                            case TipoValidacionContacto.Telefono:
+                                estrategia = new ValidacionNumeroTelefonico();
+                                break;
+
+                            default:
+                                throw new InvalidOperationException(
+                                    "El tipo de validación seleccionado no es válido.");
+                        }
+
+                        // Guardamos el checkbox para limpiarlo
+                        // después de aplicar la validación.
+                        chkActivo = chkComplemento;
+                    }
+                }
+
 
                 // 3. EJECUCIÓN Y CONSUMO DEL DTO
                 if (estrategia != null)

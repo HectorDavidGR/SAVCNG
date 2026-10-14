@@ -64,6 +64,9 @@
     <Compile Include="AuditoriaCenso.cs" />
     <Compile Include="Core\ExcelHelper.cs" />
     <Compile Include="Core\ResultadoValidacion.cs" />
+    <Compile Include="FrmSeleccionValidacionContacto.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="FrmValidaciones.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -86,6 +89,7 @@
     <Compile Include="Utilidades\LimpiarColoresService.cs" />
     <Compile Include="Utilidades\LimpiarFormatoBloqueoService.cs" />
     <Compile Include="Utilidades\ProtegerLibroService.cs" />
+    <Compile Include="Validaciones\ValidacionCorreoElectronico.cs" />
     <Compile Include="Validaciones\ValidacionBlancos.cs" />
     <Compile Include="Validaciones\ValidacionBloqueos.cs" />
     <Compile Include="Validaciones\ValidacionCatalogos.cs" />
@@ -95,7 +99,9 @@
     <Compile Include="Validaciones\ValidacionEspecifique.cs" />
     <Compile Include="Validaciones\ValidacionFechas.cs" />
     <Compile Include="Validaciones\ValidacionFormatoTexto.cs" />
+    <Compile Include="Validaciones\ValidacionHorario.cs" />
     <Compile Include="Validaciones\ValidacionNS.cs" />
+    <Compile Include="Validaciones\ValidacionNumeroTelefonico.cs" />
     <Compile Include="Validaciones\ValidacionSumas.cs" />
   </ItemGroup>
   <ItemGroup>
